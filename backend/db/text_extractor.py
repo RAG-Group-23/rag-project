@@ -1,22 +1,27 @@
-from pypdf import PdfReader
 import requests
+from pypdf import PdfReader
 
-def extract_text_from_paper(file_path: str) -> list[str]:
+class Page:
+    def __init__(self, text: str, images: list[bytes]):
+        self.texts = text
+        self.images = images
+
+def extract_text_and_images_from_paper(file_path: str) -> list[Page]:
     '''
-    Extracts text from PDF file pages
+    Extracts text and images from PDF file pages
     
     Args:
         file_path: Path to a PDF file (research paper)
     Return:
-        List of strings per page in PDF
+        List of pages (where a page object contains page text and bytes of the images)
     '''
     reader = PdfReader(file_path)
-    page_texts = []
+    output = []
     for page in reader.pages:
         text = page.extract_text()
-        page_texts.append(text)
-    return page_texts
-
+        images = [img.data for img in page.images]
+        output.append(Page(text, images))
+    return output
 
 if __name__ == '__main__':
     url = "https://arxiv.org/pdf/1706.03762"
@@ -25,9 +30,6 @@ if __name__ == '__main__':
     response.raise_for_status() 
     with open(pdf_file, "wb") as f:
         f.write(response.content)
-    pages = extract_text_from_paper(pdf_file)
-    print(f"Extracted text for {len(pages)} pages")
-    for i, page in enumerate(pages[:3]): 
-        print(f"--- Page {i+1} ---")
-        print(page[:1000])  
-        print("\n")
+    pages = extract_text_and_images_from_paper(pdf_file)
+    print(pages[2].texts[50:])
+    print(pages[2].images[0][10:])
