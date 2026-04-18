@@ -1,0 +1,110 @@
+<mxfile host="65bd71144e" pages="2">
+    <diagram name="UI" id="0r5PeRrjgfEl20tLwRVz">
+        <mxGraphModel dx="1255" dy="632" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="dBKMSmHQh9OrBfHsh_P9-18" value="" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="-324" y="1176" width="494" height="247" as="geometry"/>
+                </mxCell>
+                <mxCell id="dBKMSmHQh9OrBfHsh_P9-19" value="Web UI" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="-137" y="1144" width="120" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="dBKMSmHQh9OrBfHsh_P9-20" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+                    <mxGeometry x="-180.3" y="1178" width="206.6" height="243" as="geometry"/>
+                </mxCell>
+                <mxCell id="dBKMSmHQh9OrBfHsh_P9-21" value="File CRUD area +&amp;nbsp;&lt;div&gt;File selection area&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+                    <mxGeometry x="41" y="1180" width="123" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="dBKMSmHQh9OrBfHsh_P9-22" value="Previous Chat/Session list" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+                    <mxGeometry x="-316" y="1182" width="123" height="239" as="geometry"/>
+                </mxCell>
+                <mxCell id="dBKMSmHQh9OrBfHsh_P9-23" value="create new session button" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+                    <mxGeometry x="-177" y="1194" width="85" height="35" as="geometry"/>
+                </mxCell>
+                <mxCell id="dBKMSmHQh9OrBfHsh_P9-24" value="Current chat/session window&amp;nbsp;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+                    <mxGeometry x="-180.3" y="1178" width="206.6" height="12" as="geometry"/>
+                </mxCell>
+                <mxCell id="dBKMSmHQh9OrBfHsh_P9-25" value="Text Input" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="-163.5" y="1401" width="173" height="14" as="geometry"/>
+                </mxCell>
+                <mxCell id="dBKMSmHQh9OrBfHsh_P9-27" value="Previous conversation of this session" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="-158" y="1247" width="168" height="143" as="geometry"/>
+                </mxCell>
+                <mxCell id="dBKMSmHQh9OrBfHsh_P9-28" value="&lt;b&gt;User Story 1 (everyday usage):&lt;/b&gt;&lt;div&gt;I open the UI and the system automatically creates and opens a new session. Then I select the documents (checkboxes) I want to use. In the main center area I ask the RAG system a question about the selected documents. After some time I get the response. My question and the response are saved and displayed in the center area.&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="222" y="1047" width="200" height="183" as="geometry"/>
+                </mxCell>
+                <mxCell id="dBKMSmHQh9OrBfHsh_P9-29" value="&lt;b&gt;User Story 2 (file upload):&lt;/b&gt;&lt;div&gt;I open the UI.&amp;nbsp;&lt;span style=&quot;background-color: initial;&quot;&gt;I drag documents onto the right part of the window to upload a file for indexing. The files status in pending/indexing. After some time the file turns into indexed and fully usable in any other session. (old or new)&lt;/span&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="434" y="1047" width="200" height="183" as="geometry"/>
+                </mxCell>
+                <mxCell id="dBKMSmHQh9OrBfHsh_P9-30" value="&lt;b&gt;User Story 3 (opening previous seesion):&lt;/b&gt;&lt;div&gt;I open the UI. On the left side of the window I select one of my previous chats. By clicking it I open it. The chat history apears in the center area. I can continue chatting in this chat/session.&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="222" y="1240" width="200" height="183" as="geometry"/>
+                </mxCell>
+                <mxCell id="Zz72XPGM2RTjF0w5ItkM-1" value="&lt;b&gt;General description:&lt;/b&gt;&lt;div&gt;This is a single user system. With a database service for persistent storage.&amp;nbsp;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;It allows you to upload pdf lecture slides/materials. The system then indexes the uploaded files.&amp;nbsp;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;The user can ask question about the uploaded and selected files.&amp;nbsp;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="-324" y="950" width="493" height="183" as="geometry"/>
+                </mxCell>
+                <mxCell id="jZKQEIBSfkqtFi6f2tL6-1" value="&lt;b&gt;!!! This is an older version when we still didn&#39;t deside on a topic. Some language is outdated, but the general idea is the same !!!&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="1" vertex="1">
+                    <mxGeometry x="-374" y="1465" width="814" height="32" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="iOwH5xaaxhHXFWM0RD0d" name="High level architecture">
+        <mxGraphModel dx="1255" dy="1432" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-21" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+                    <mxGeometry x="-55" y="400" width="817" height="355" as="geometry"/>
+                </mxCell>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-20" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="JNa0gIk4KVL6wGKFuNlz-2" target="JNa0gIk4KVL6wGKFuNlz-10" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="hI1z176GVR33w2qxFocS-1" value="HTTP requests" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="JNa0gIk4KVL6wGKFuNlz-20" connectable="0" vertex="1">
+                    <mxGeometry x="-0.1064" y="-4" relative="1" as="geometry">
+                        <mxPoint y="5" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-2" value="Front end" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=25;" parent="1" vertex="1">
+                    <mxGeometry x="231.25" y="781" width="252.5" height="139" as="geometry"/>
+                </mxCell>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-15" value="" style="group" parent="1" connectable="0" vertex="1">
+                    <mxGeometry x="525" y="417" width="213" height="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-6" value="ML service" style="rounded=0;whiteSpace=wrap;html=1;container=0;fillColor=#f8cecc;strokeColor=#b85450;" parent="JNa0gIk4KVL6wGKFuNlz-15" vertex="1">
+                    <mxGeometry x="46.5" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-9" value="&lt;ul&gt;&lt;li&gt;Create embeddings&lt;/li&gt;&lt;li&gt;LLM calls&lt;/li&gt;&lt;/ul&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;container=0;fillColor=#f8cecc;strokeColor=#b85450;" parent="JNa0gIk4KVL6wGKFuNlz-15" vertex="1">
+                    <mxGeometry y="70" width="213" height="220" as="geometry"/>
+                </mxCell>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-16" value="" style="group" parent="1" connectable="0" vertex="1">
+                    <mxGeometry x="251" y="417" width="213" height="292" as="geometry"/>
+                </mxCell>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-7" value="General backend / other services" style="rounded=0;whiteSpace=wrap;html=1;container=0;fillColor=#d5e8d4;strokeColor=#82b366;" parent="JNa0gIk4KVL6wGKFuNlz-16" vertex="1">
+                    <mxGeometry x="46.5" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-10" value="&lt;ul&gt;&lt;li&gt;Comunication logistics&lt;/li&gt;&lt;li&gt;Chat context managment&lt;/li&gt;&lt;/ul&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;container=0;fillColor=#d5e8d4;strokeColor=#82b366;" parent="JNa0gIk4KVL6wGKFuNlz-16" vertex="1">
+                    <mxGeometry y="70" width="213" height="222" as="geometry"/>
+                </mxCell>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-17" value="" style="group" parent="1" connectable="0" vertex="1">
+                    <mxGeometry x="-32" y="417" width="213" height="292" as="geometry"/>
+                </mxCell>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-5" value="DB service" style="rounded=0;whiteSpace=wrap;html=1;container=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="JNa0gIk4KVL6wGKFuNlz-17" vertex="1">
+                    <mxGeometry x="46.5" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-8" value="&lt;ul&gt;&lt;li&gt;&lt;font&gt;Store vectors,&amp;nbsp;&lt;/font&gt;chunks with their metadata,&amp;nbsp; raw files, sessions / chats history&lt;/li&gt;&lt;li&gt;&lt;font&gt;-----&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;font&gt;Keyword search&amp;nbsp;&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;font&gt;Embedding search&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;font&gt;Indexing&amp;nbsp;&lt;/font&gt;&lt;/li&gt;&lt;/ul&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;container=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" parent="JNa0gIk4KVL6wGKFuNlz-17" vertex="1">
+                    <mxGeometry y="70" width="213" height="222" as="geometry"/>
+                </mxCell>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-18" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=classic;startFill=1;" parent="1" source="JNa0gIk4KVL6wGKFuNlz-8" target="JNa0gIk4KVL6wGKFuNlz-10" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=classic;startFill=1;" parent="1" source="JNa0gIk4KVL6wGKFuNlz-10" target="JNa0gIk4KVL6wGKFuNlz-9" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="JNa0gIk4KVL6wGKFuNlz-23" value="Backend" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+                    <mxGeometry x="-55" y="371" width="75" height="29" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
