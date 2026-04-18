@@ -9,14 +9,14 @@ app = FastAPI()
 # ----------------------------------------
 
 class LLMCallRequest(BaseModel):
-    context: dict
-@app.post("/llm")
+    text: str 
+@app.post("/generate")
 async def llm_call(request: LLMCallRequest) -> str:
 
     """
     Make a call to the LLM with the given input and parameters.
 
-    :param context: A dictionary of the conversation in a session.
+    :param text: The input text for the LLM.
 
     Returns:
         string: The response from the LLM.

@@ -14,7 +14,7 @@ app = FastAPI()
 # Session management
 # ---------------------------------------
 
-@app.post("/session")
+@app.post("/sessions")
 async def create_new_session() -> str:
     """
     Create a new empty session for the user. 
@@ -24,7 +24,7 @@ async def create_new_session() -> str:
     """
     raise NotImplementedError()
 
-@app.delete("/session/{session_id}")
+@app.delete("/sessions/{session_id}")
 async def delete_session(session_id: str) -> bool:
     """
     Delete an existing session. 
@@ -36,7 +36,7 @@ async def delete_session(session_id: str) -> bool:
     """
     raise NotImplementedError()    
     
-@app.get("/session/{session_id}")
+@app.get("/sessions/{session_id}")
 async def get_session(session_id: str) -> dict:
     """
     Get session conversation and metadata.
@@ -48,8 +48,8 @@ async def get_session(session_id: str) -> dict:
     """
     raise NotImplementedError()  
 
-@app.get("/session-list") 
-async def get_session_list() -> list:
+@app.get("/sessions") 
+async def get_sessions_list() -> list:
     """
     Get a list of all sessions. It only contains metadata of each session, not the conversation. For displaying the session list on the frontend.
 
@@ -64,7 +64,7 @@ async def get_session_list() -> list:
 
 class AddUserMessageRequest(BaseModel):
     message: str
-@app.post("/session/{session_id}/user-message")
+@app.post("/sessions/{session_id}/user-message")
 async def add_user_message_to_session(session_id: str, request: AddUserMessageRequest) -> bool:
     """
     Add a user message to an existing session. 
@@ -77,8 +77,8 @@ async def add_user_message_to_session(session_id: str, request: AddUserMessageRe
     """
     raise NotImplementedError()
 
-@app.get("/session/{session_id}/response")
-async def get_response_from_session(session_id: str) -> dict:
+@app.get("/sessions/{session_id}/response")
+async def get_response_for_session(session_id: str) -> dict:
     """
     Get the response message from the session. 
     It automatically adds the new response message to the session conversation.
@@ -97,7 +97,7 @@ async def get_response_from_session(session_id: str) -> dict:
 
 class AddDocumentRequest(BaseModel):
     raw_document: str
-@app.post("/document")
+@app.post("/documents")
 async def add_document(request: AddDocumentRequest) -> bool:
     """
     Uploads the document and indexes it. 
@@ -109,7 +109,7 @@ async def add_document(request: AddDocumentRequest) -> bool:
     """
     raise NotImplementedError()
 
-@app.get("/document/{document_id}")
+@app.get("/documents/{document_id}")
 async def get_document(document_id: str) -> dict:
     """
     Get the document content and metadata.
@@ -121,7 +121,7 @@ async def get_document(document_id: str) -> dict:
     """
     raise NotImplementedError()
 
-@app.delete("/document/{document_id}")
+@app.delete("/documents/{document_id}")
 async def delete_document(document_id: str) -> bool:
     """
     Delete an existing document. 
