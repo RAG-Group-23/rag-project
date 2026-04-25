@@ -20,7 +20,7 @@ def get_default_embedding() -> Any:
     return HuggingFaceEmbeddings(model_name=model_name)
 
 
-# TODO: Use better chunking
+# TODO: Replace with better chunking mechanism
 def get_default_text_splitter() -> Any:
     return RecursiveCharacterTextSplitter.from_tiktoken_encoder(
         chunk_size=int(os.getenv("CHUNK_SIZE", "300")),

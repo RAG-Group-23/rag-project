@@ -22,14 +22,3 @@ def extract_text_and_images_from_paper(file_path: str) -> list[Page]:
         images = [img.data for img in page.images]
         output.append(Page(text, images))
     return output
-
-if __name__ == '__main__':
-    url = "https://arxiv.org/pdf/1706.03762"
-    pdf_file = "paper.pdf"
-    response = requests.get(url)
-    response.raise_for_status() 
-    with open(pdf_file, "wb") as f:
-        f.write(response.content)
-    pages = extract_text_and_images_from_paper(pdf_file)
-    print(pages[2].texts[50:])
-    print(pages[2].images[0][10:])

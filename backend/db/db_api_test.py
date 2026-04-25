@@ -1,3 +1,4 @@
+from pathlib import Path
 import base64
 import os
 import tempfile
@@ -46,7 +47,7 @@ def test_add_document_indexes_and_retrieves():
     try:
         client = TestClient(app)
         r = client.post(
-            "/document",
+            "/documents",
             json={
                 "raw_document": payload,
                 "filename": "paper.pdf",
@@ -64,7 +65,7 @@ def test_add_document_indexes_and_retrieves():
         assert expected in total
     finally:
         app.dependency_overrides.clear()
-
+        Path(PDF_FILE).unlink(missing_ok=True)
 
 if __name__ == "__main__":
     test_add_document_indexes_and_retrieves()

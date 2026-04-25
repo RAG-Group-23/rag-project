@@ -1,6 +1,12 @@
 # Database API
 Everything related to the database managament (including vector db) is handled by this API
 
+## Docs
+```sh
+$ uvicorn db_api:app --reload --port 8000
+```
+* On http://localhost:8000/docs you can then view the endpoints of the DB API 
+
 ## Production
 ```sh
 cd backend/db

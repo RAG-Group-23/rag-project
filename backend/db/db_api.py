@@ -18,7 +18,7 @@ app = FastAPI()
 #----------------------------------------
 
 @app.post("/sessions")
-def create_new_session() -> str:
+def create_session() -> str:
     """
     Create a new empty session for the user. 
 
@@ -55,7 +55,7 @@ def get_session(session_id: str) -> dict:
 
 
 @app.get("/sessions")
-def get_session_list() -> list:
+def get_sessions() -> list:
     """
     Get a list of all sessions. It only contains metadata of each session, not the conversation. For displaying the session list on the frontend.
 
@@ -68,10 +68,11 @@ def get_session_list() -> list:
 # Conversation management
 #----------------------------------------
 
-class AddUserMessageRequest(BaseModel):
+
+class CreateConversation(BaseModel):
     message: str
 @app.post("/session/{session_id}/conversation")
-def add_user_message_to_session(session_id: str, request: AddUserMessageRequest) -> bool:
+def create_conversation_for_session(session_id: str, request: CreateConversation) -> bool:
     """
     Creates a conversation mapped to session
     Should trigger a response from backend
@@ -85,12 +86,10 @@ def add_user_message_to_session(session_id: str, request: AddUserMessageRequest)
     raise NotImplementedError()
 
 
-class AddUserMessageRequest(BaseModel):
+class UpdateConversation(BaseModel):
     message: str
-
-
-@app.put("/session/{session_id}/conversation")
-def add_user_message_to_session(session_id: str, request: AddUserMessageRequest) -> bool:
+@app.put("/sessions/{session_id}/conversation")
+def update_conversation_of_session(session_id: str, request: UpdateConversation) -> bool:
     """
     Add a user message to an existing session's conversation
     Should trigger a response from backend
@@ -103,8 +102,8 @@ def add_user_message_to_session(session_id: str, request: AddUserMessageRequest)
     """
     raise NotImplementedError()
 
-@app.get("/session/{session_id}/conversation")
-def get_response_from_session(session_id: str) -> dict:
+@app.get("/sessions/{session_id}/conversation")
+def get_conversation_of_session(session_id: str) -> dict:
     """
     Get the response message from the session. 
     It automatically adds the new response message to the session conversation.
@@ -125,7 +124,7 @@ class AddDocumentRequest(BaseModel):
     raw_document: str
     filename: str
     collection: str # session_id
-@app.post("/document")
+@app.post("/documents")
 def add_document(
     request: AddDocumentRequest,
     vectordb=Depends(get_vectordb_dep),
@@ -146,7 +145,7 @@ def add_document(
     return index_document(file_bytes, vectordb=vectordb, text_splitter=text_splitter)
 
 
-@app.get("/document/{document_id}")
+@app.get("/documents/{document_id}")
 def get_document(document_id: str) -> str:
     """
     Get the document content and metadata.
@@ -159,7 +158,7 @@ def get_document(document_id: str) -> str:
     raise NotImplementedError()
 
 
-@app.delete("/document/{document_id}")
+@app.delete("/documents/{document_id}")
 def delete_document(document_id: str) -> bool:
     """
     Delete an existing document. 
@@ -176,7 +175,6 @@ def delete_document(document_id: str) -> bool:
 # Search management 
 # ----------------------------------------
 
-
 class SearchKeywordRequest(BaseModel):
     list_of_document_ids: list[str]
     query: str
@@ -192,7 +190,6 @@ def search_keyword(request: SearchKeywordRequest) -> list:
         list: A list of relevant chunks sorted by relevance score.
     """
     raise NotImplementedError()
-
 
 
 class SearchEmbeddingRequest(BaseModel):

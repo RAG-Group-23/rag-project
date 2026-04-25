@@ -60,7 +60,7 @@ class ChromaDBInstance(VectorDBInterface):
             embedding=self.embedding,
             persist_directory=self.persist_directory
         )
-        self.vectorstore.persist()
+        #self.vectorstore.persist()
         return self.vectorstore
 
     def get_vectorstore(self):
@@ -70,47 +70,3 @@ class ChromaDBInstance(VectorDBInterface):
                 persist_directory=self.persist_directory
             )
         return self.vectorstore
-    
-if __name__ == "__main__":
-    import requests
-    from text_extractor import extract_text_and_images_from_paper
-    from langchain_core.documents import Document
-    from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-    url = "https://arxiv.org/pdf/1706.03762"
-    pdf_file = "paper.pdf"
-    response = requests.get(url)
-    response.raise_for_status()
-    with open(pdf_file, "wb") as f:
-        f.write(response.content)
-    pages = extract_text_and_images_from_paper(pdf_file)
-    
-    documents = [
-        Document(
-            page_content=page.texts or "",
-            metadata={"num_images": len(page.images)}
-        )
-        for page in pages
-    ]
-
-    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-        chunk_size=300,
-        chunk_overlap=50
-    )
-
-    splits = text_splitter.split_documents(documents)
-    embedding = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-
-    # in production, replace this with the PGVectorDBInstance!
-    vectorDB = ChromaDBInstance(embedding_func=embedding)
-
-    vectorDB.index_documents(splits)
-    vectorstore = vectorDB.get_vectorstore()
-    retriever = vectorstore.as_retriever()
-
-    retriever = vectorstore.as_retriever()
-    docs = retriever.invoke("What is attention?")
-    for doc in docs:
-        print(doc.page_content)
