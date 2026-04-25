@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import PGVector, Chroma
 
+from langchain_huggingface import HuggingFaceEmbeddings
+
 
 class VectorDBInterface(ABC):
     @abstractmethod
@@ -70,7 +72,6 @@ class ChromaDBInstance(VectorDBInterface):
             embedding=self.embedding,
             persist_directory=self.persist_directory,
         )
-        self.vectorstore.persist()
         return self.vectorstore
 
     def get_vectorstore(self):
@@ -113,14 +114,17 @@ if __name__ == "__main__":
     )
 
     # In production, replace this with PGVectorDBInstance.
-    vector_db = ChromaDBInstance(embedding_func=embedding)
+    vector_db = ChromaDBInstance(
+        embedding_func=embedding,
+        persist_directory="./chroma_db_test"
+    )
 
     vector_db.index_documents(splits)
 
     vectorstore = vector_db.get_vectorstore()
-    retriever = vectorstore.as_retriever()
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-    docs = retriever.invoke("What is attention?")
+    docs = retriever.invoke("How is scaled dot-product attention computed?")
 
     for doc in docs:
         print("-----")
