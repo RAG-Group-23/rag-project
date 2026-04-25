@@ -1,5 +1,9 @@
-from fastapi import FastAPI
+import base64
+
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
+
+from db import index_document, get_vectordb_dep, get_text_splitter_dep
 
 app = FastAPI()
 
@@ -13,7 +17,7 @@ app = FastAPI()
 # Session management
 #----------------------------------------
 
-@app.post("/session")
+@app.post("/sessions")
 def create_new_session() -> str:
     """
     Create a new empty session for the user. 
@@ -24,7 +28,7 @@ def create_new_session() -> str:
     raise NotImplementedError()
 
 
-@app.delete("/session/{session_id}")
+@app.delete("/sessions/{session_id}")
 def delete_session(session_id: str) -> bool:
     """
     Delete an existing session. 
@@ -37,7 +41,7 @@ def delete_session(session_id: str) -> bool:
     raise NotImplementedError()
 
 
-@app.get("/session/{session_id}")
+@app.get("/sessions/{session_id}")
 def get_session(session_id: str) -> dict:
     """
     Get session conversation and metadata.
@@ -50,7 +54,7 @@ def get_session(session_id: str) -> dict:
     raise NotImplementedError()
 
 
-@app.get("/session-list")
+@app.get("/sessions")
 def get_session_list() -> list:
     """
     Get a list of all sessions. It only contains metadata of each session, not the conversation. For displaying the session list on the frontend.
@@ -60,17 +64,17 @@ def get_session_list() -> list:
     """
     raise NotImplementedError()
 
-
 #----------------------------------------
 # Conversation management
 #----------------------------------------
 
 class AddUserMessageRequest(BaseModel):
     message: str
-@app.post("/session/{session_id}/user-message")
+@app.post("/session/{session_id}/conversation")
 def add_user_message_to_session(session_id: str, request: AddUserMessageRequest) -> bool:
     """
-    Add a user message to an existing session. 
+    Creates a conversation mapped to session
+    Should trigger a response from backend
 
     :param session_id: The ID of the session to which the message will be added.
     :param message: The user message to add.
@@ -81,7 +85,25 @@ def add_user_message_to_session(session_id: str, request: AddUserMessageRequest)
     raise NotImplementedError()
 
 
-@app.get("/session/{session_id}/response")
+class AddUserMessageRequest(BaseModel):
+    message: str
+
+
+@app.put("/session/{session_id}/conversation")
+def add_user_message_to_session(session_id: str, request: AddUserMessageRequest) -> bool:
+    """
+    Add a user message to an existing session's conversation
+    Should trigger a response from backend
+
+    :param session_id: The ID of the session to which the message will be added.
+    :param message: The user message to add.
+
+    Returns:
+        bool: True if the message was added successfully, False otherwise.
+    """
+    raise NotImplementedError()
+
+@app.get("/session/{session_id}/conversation")
 def get_response_from_session(session_id: str) -> dict:
     """
     Get the response message from the session. 
@@ -101,17 +123,27 @@ def get_response_from_session(session_id: str) -> dict:
 
 class AddDocumentRequest(BaseModel):
     raw_document: str
+    filename: str
+    collection: str # session_id
 @app.post("/document")
-def add_document(request: AddDocumentRequest) -> bool:
+def add_document(
+    request: AddDocumentRequest,
+    vectordb=Depends(get_vectordb_dep),
+    text_splitter=Depends(get_text_splitter_dep),
+) -> bool:
     """
-    Uploads the document and indexes it. 
+    Uploads the document and indexes it.
 
     :param raw_document: The raw document content to add. (in base64 encoded)
 
     Returns:
         bool: True if the document was added successfully, False otherwise.
     """
-    raise NotImplementedError()
+    try:
+        file_bytes = base64.b64decode(request.raw_document)
+    except (ValueError, base64.binascii.Error) as e:
+        raise HTTPException(status_code=400, detail=f"Invalid base64 payload: {e}")
+    return index_document(file_bytes, vectordb=vectordb, text_splitter=text_splitter)
 
 
 @app.get("/document/{document_id}")
