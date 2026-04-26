@@ -1,2 +1,22 @@
-.vscode/*
+# Local vector DB / generated test data
+chroma_db/
+chroma_db_test/
+tmp_chroma_db/
+backend/chroma_db/
+backend/chroma_db_test/
+backend/tmp_chroma_db/
+backend/db/chroma_db/
+backend/db/chroma_db_test/
+backend/db/tmp_chroma_db/
+backend/chroma_db_test/
+backend/chroma_db_test_2/
+*chroma_db*
+
+# Downloaded test PDFs
+paper.pdf
+backend/paper.pdf
+backend/db/paper.pdf
+
+# Python cache
 __pycache__/
+*.pyc

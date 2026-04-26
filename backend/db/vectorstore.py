@@ -105,8 +105,8 @@ if __name__ == "__main__":
     splits = chunk_pages(
         pages=pages,
         document_id=document_id,
-        chunk_size=300,
-        chunk_overlap=50,
+        chunk_size=1200,
+        chunk_overlap=150,
     )
 
     embedding = HuggingFaceEmbeddings(
