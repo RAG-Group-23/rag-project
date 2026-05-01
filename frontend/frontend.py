@@ -4,6 +4,10 @@ import json
 import time
 from uuid import uuid4
 
+# TODO: Find some good user/bot asset pngs assets/bot.png
+USER_AVATAR = None
+BOT_AVATAR = None
+
 
 def prepare_document_payload(file_bytes: bytes) -> dict:
     encoded = base64.b64encode(file_bytes).decode("utf-8")
@@ -43,6 +47,7 @@ st.set_page_config(
     layout="wide",
 )
 
+
 # Session state
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid4())
@@ -51,7 +56,7 @@ if "messages" not in st.session_state:
 if "uploaded_docs" not in st.session_state:
     st.session_state.uploaded_docs = []
 
-session_id = st.session_state.session_id
+session_id = st.session_state.session_id[:6]
 
 # Sidebar: session info, document upload, controls
 with st.sidebar:
@@ -104,7 +109,7 @@ st.caption("Ask questions about your uploaded research papers.")
 
 # Empty-state hint
 if not st.session_state.messages:
-    with st.chat_message("assistant", avatar="🤖"):
+    with st.chat_message("assistant", avatar=BOT_AVATAR):
         st.markdown(
             "Hi! Upload a paper from the sidebar and ask me anything about it. "
             "_(Responses are mocked for now.)_"
@@ -112,7 +117,7 @@ if not st.session_state.messages:
 
 # Display history
 for msg in st.session_state.messages:
-    avatar = "🧑" if msg["role"] == "user" else "🤖"
+    avatar = USER_AVATAR if msg["role"] == "user" else BOT_AVATAR
     with st.chat_message(msg["role"], avatar=avatar):
         st.markdown(msg["content"])
 
@@ -122,7 +127,7 @@ query = st.chat_input("Ask a question about your documents...")
 
 if query:
     st.session_state.messages.append({"role": "user", "content": query})
-    with st.chat_message("user", avatar="🧑"):
+    with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(query)
 
     query_payload = prepare_query_payload(query)
@@ -132,7 +137,7 @@ if query:
         payload=query_payload,
     )
 
-    with st.chat_message("assistant", avatar="🤖"):
+    with st.chat_message("assistant", avatar=BOT_AVATAR):
         with st.spinner("Thinking..."):
             time.sleep(0.4)
             api_response = mock_send_query(query)
