@@ -3,16 +3,22 @@ import base64
 import json
 import time
 from uuid import uuid4
+import requests
 
 # TODO: Find some good user/bot asset pngs assets/bot.png
 USER_AVATAR = None
 BOT_AVATAR = None
+# For local testing
+API_BASE_URL = "http://127.0.0.1:8000"
 
 
-def prepare_document_payload(file_bytes: bytes) -> dict:
+
+def prepare_document_payload(file_bytes: bytes, filename: str, session_id: str) -> dict:
     encoded = base64.b64encode(file_bytes).decode("utf-8")
     return {
-        "raw_documents": [encoded]
+        "raw_document": encoded,
+        "filename" : filename,
+        "session_id" : session_id
     }
 
 
@@ -55,6 +61,8 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "uploaded_docs" not in st.session_state:
     st.session_state.uploaded_docs = []
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0
 
 session_id = st.session_state.session_id[:6]
 
@@ -74,23 +82,37 @@ with st.sidebar:
 
     st.divider()
     st.markdown("**Documents**")
-    uploaded_file = st.file_uploader(
+    uploaded_files = st.file_uploader(
         "Upload a document",
         type=["pdf", "txt"],
         label_visibility="collapsed",
+        accept_multiple_files=True,
+        key=st.session_state.uploader_key,
     )
 
-    if uploaded_file is not None and uploaded_file.name not in st.session_state.uploaded_docs:
-        file_bytes = uploaded_file.read()
-        doc_payload = prepare_document_payload(file_bytes)
-        document_request = prepare_request(
-            method="POST",
-            url="/documents",
-            payload=doc_payload,
-        )
-        # Backend call goes here. For now we just record the upload.
-        st.session_state.uploaded_docs.append(uploaded_file.name)
-        st.toast(f"Uploaded {uploaded_file.name}", icon="✅")
+    # Multi-document uploud
+    for uploaded_file in uploaded_files:
+        if uploaded_file.name not in st.session_state.uploaded_docs:
+            file_bytes = uploaded_file.read()
+            doc_payload = prepare_document_payload(
+                file_bytes, uploaded_file.name, session_id)
+
+            with st.spinner(f"Uploading {uploaded_file.name}..."):
+                response = requests.post(
+                    f"{API_BASE_URL}/documents",
+                    json=doc_payload,
+                )
+
+            if response.status_code == 200:
+                st.session_state.uploaded_docs.append(uploaded_file.name)
+                st.toast(f"{uploaded_file.name} uploaded!", icon="✅")
+            else:
+                st.toast(f"❌ Upload failed ({response.status_code})", icon="❌")
+
+    if uploaded_files:
+        st.session_state.uploader_key += 1
+        st.rerun()
+
 
     if st.session_state.uploaded_docs:
         for name in st.session_state.uploaded_docs:
