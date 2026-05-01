@@ -71,7 +71,7 @@ def get_sessions() -> list:
 
 class CreateConversation(BaseModel):
     message: str
-@app.post("/session/{session_id}/conversation")
+@app.post("/sessions/{session_id}/conversation")
 def create_conversation_for_session(session_id: str, request: CreateConversation) -> bool:
     """
     Creates a conversation mapped to session
@@ -123,7 +123,7 @@ def get_conversation_of_session(session_id: str) -> dict:
 class AddDocumentRequest(BaseModel):
     raw_document: str
     filename: str
-    collection: str # session_id
+    session_id: str
 @app.post("/documents")
 def add_document(
     request: AddDocumentRequest,
