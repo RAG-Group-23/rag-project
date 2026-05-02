@@ -4,13 +4,13 @@ import json
 import time
 from uuid import uuid4
 import requests
+import os
 
 # TODO: Find some good user/bot asset pngs assets/bot.png
 USER_AVATAR = None
 BOT_AVATAR = None
-# For local testing
-API_BASE_URL = "http://127.0.0.1:8000"
-
+HOST_IP = os.getenv('HOST_IP', None)
+API_BASE_URL = f"http://{HOST_IP}:8000" if HOST_IP is not None else "http://127.0.0.1:8000"
 
 
 def prepare_document_payload(file_bytes: bytes, filename: str, session_id: str) -> dict:
