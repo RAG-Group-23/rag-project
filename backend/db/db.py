@@ -33,6 +33,7 @@ def get_default_vectordb(embedding: Optional[Any] = None) -> VectorDBInterface:
         embedding = get_default_embedding()
     backend = os.getenv("VECTOR_DB", "chroma").lower()
     if backend == "pgvector":
+        print("Using PGVector DB")
         db = PGVectorDBInstance(
             embedding_func=embedding,
             collection_name=os.getenv("PGVECTOR_COLLECTION", "documents"),
@@ -46,6 +47,7 @@ def get_default_vectordb(embedding: Optional[Any] = None) -> VectorDBInterface:
         )
         return db
     if backend == "chroma":
+        print("Using ChromaDB")
         return ChromaDBInstance(
             embedding_func=embedding,
             persist_directory=os.getenv("CHROMA_DIR", "./chroma_db"),
