@@ -1,16 +1,17 @@
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import PGVector
 from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import VectorStore
 from abc import ABC, abstractmethod
 
 
 class VectorDBInterface(ABC):
     @abstractmethod
-    def index_documents(self, documents: list):
+    def index_documents(self, documents: list[str]) -> VectorStore:
         pass
 
     @abstractmethod
-    def get_vectorstore(self):
+    def get_vectorstore(self) -> VectorStore:
         pass
 
 
@@ -60,7 +61,8 @@ class ChromaDBInstance(VectorDBInterface):
             embedding=self.embedding,
             persist_directory=self.persist_directory
         )
-        #self.vectorstore.persist()
+        # NOTE: Deprecated ?
+        # self.vectorstore.persist()
         return self.vectorstore
 
     def get_vectorstore(self):
