@@ -1,6 +1,9 @@
+import uuid
+import psycopg2
 import os
 from io import BytesIO
 from typing import Any, Optional
+import base64
 
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
@@ -85,24 +88,34 @@ def get_text_splitter_dep() -> Any:
 def index_document(
     file_bytes: bytes,
     *,
+    filename: str = "",
     vectordb: Optional[VectorDBInterface] = None,
     text_splitter: Any = None,
 ) -> bool:
     pages = extract_text_and_images_from_paper(BytesIO(file_bytes))
 
-    documents = [
+    if vectordb is None:
+        vectordb = _cached_default_vectordb()
+    
+    doc_id = vectordb.store_pdf(filename=filename, file_bytes=file_bytes)
+
+    pages = [
         Document(
             page_content=page.texts or "",
-            metadata={"num_images": len(page.images)}
+            metadata={
+                "num_images": len(page.images),
+                "filename": filename,
+                "doc_id" : doc_id,
+                "page_index": i,
+            }
         )
-        for page in pages
+        for i, page in enumerate(pages)
     ]
-
     if text_splitter is None:
         text_splitter = get_default_text_splitter()
-    splits = text_splitter.split_documents(documents)
+    chunks = text_splitter.split_documents(pages)
 
     if vectordb is None:
         vectordb = _cached_default_vectordb()
-    vectordb.index_documents(splits)
+    vectordb.index_documents(chunks)
     return True

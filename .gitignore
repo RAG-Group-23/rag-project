@@ -1,2 +1,3 @@
 .vscode/*
 __pycache__/
+backend/db/chroma_db/*
