@@ -47,7 +47,7 @@ class PGVectorDBInstance(VectorDBInterface):
         with psycopg2.connect(self._pg_conn_string()) as conn:
             with conn.cursor() as cur:
                 cur.execute("""
-                    CREATE TABLE IF NOT EXISTS documents (
+                    CREATE TABLE IF NOT EXISTS pdf_documents (
                         doc_id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                         filename    TEXT NOT NULL,
                         pdf         BYTEA NOT NULL,
@@ -62,7 +62,7 @@ class PGVectorDBInstance(VectorDBInterface):
         with psycopg2.connect(self._pg_conn_string()) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO documents (doc_id, filename, pdf) VALUES (%s, %s, %s)",
+                    "INSERT INTO pdf_documents (doc_id, filename, pdf) VALUES (%s, %s, %s)",
                     (doc_id, filename, psycopg2.Binary(file_bytes))
                 )
         return doc_id
@@ -72,7 +72,7 @@ class PGVectorDBInstance(VectorDBInterface):
         with psycopg2.connect(self._pg_conn_string()) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT filename, pdf FROM documents WHERE doc_id = %s",
+                    "SELECT filename, pdf FROM pdf_documents WHERE doc_id = %s",
                     (doc_id,)
                 )
                 row = cur.fetchone()
@@ -107,7 +107,6 @@ class PGVectorDBInstance(VectorDBInterface):
         if doc_ids is not None:
             search_kwargs["filter"] = {"doc_id": {"$in": doc_ids}}
         return vs.as_retriever(search_kwargs=search_kwargs)
-
 
 
 class ChromaDBInstance(VectorDBInterface):

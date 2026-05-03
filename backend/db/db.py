@@ -1,9 +1,6 @@
-import uuid
-import psycopg2
 import os
 from io import BytesIO
 from typing import Any, Optional
-import base64
 
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
@@ -39,7 +36,7 @@ def get_default_vectordb(embedding: Optional[Any] = None) -> VectorDBInterface:
         print("Using PGVector DB")
         db = PGVectorDBInstance(
             embedding_func=embedding,
-            collection_name=os.getenv("PGVECTOR_COLLECTION", "documents"),
+            collection_name=os.getenv("PGVECTOR_COLLECTION", "my_documents"),
         )
         db.set_connection_string(
             user=os.getenv("PGVECTOR_USER", "postgres"),
