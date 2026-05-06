@@ -215,6 +215,7 @@ def add_document(
             text_splitter=text_splitter,
         )
     except Exception as e:
+        print("Error", e)
         raise HTTPException(
             status_code=500, detail=f"Error indexing document: {e}")
 

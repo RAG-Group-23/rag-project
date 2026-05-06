@@ -110,6 +110,7 @@ class PGVectorDBInstance(VectorDBInterface):
 
 class ChromaDBInstance(VectorDBInterface):
     def __init__(self, embedding_func, persist_directory: str = "./chroma_db"):
+        print("Init ChromaDB")
         self.embedding = embedding_func
         self.persist_directory = persist_directory
         self.vectorstore = None

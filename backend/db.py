@@ -199,8 +199,10 @@ def index_document(
     bool
         True on success; propagates exceptions on failure.
     """
+    print("Test")
     if vectordb is None:
         vectordb = _cached_default_vectordb()
+        print("Got VectorDB")
     if text_splitter is None:
         text_splitter = get_default_text_splitter()
 
