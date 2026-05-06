@@ -14,6 +14,7 @@ from db import (
     get_vectordb_dep,
     get_text_splitter_dep,
 )
+from ml import LLM, Embedder
 
 app = FastAPI(title="RAG Backend API")
 
@@ -27,6 +28,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ----------------------------------------
+# Load models 
+# ----------------------------------------
+
+llm = LLM("ministral/Ministral-3b-instruct")
+embedder = Embedder("Qwen/Qwen3-Embedding-4B")
 
 
 # ----------------------------------------
@@ -277,6 +285,34 @@ def search_embedding(request: SearchEmbeddingRequest) -> list:
     """
     raise NotImplementedError()
 
+
+# ----------------------------------------
+# LLM generation 
+# ----------------------------------------
+
+class LLMGenerateRequest(BaseModel):
+    messages:list[dict]
+    parameters: dict|None = None
+
+@app.post("/llm/generate")
+def generate(request:LLMGenerateRequest) -> str:
+    if request.parameters == None:
+        request.parameters = {}
+
+    response = llm.generate(
+        messages=request.messages,
+        **request.parameters
+    )
+    return response 
+
+
+class GetEmbeddingsRequest(BaseModel):
+    input: list[str]
+    is_query: bool = False
+
+@app.post("/embedder")
+async def get_embeddings(request: GetEmbeddingsRequest) -> list[list[float]]:
+    return embedder.encode(request.input, is_query=request.is_query)
 
 # ----------------------------------------
 # Entrypoint
