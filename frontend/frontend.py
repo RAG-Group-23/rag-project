@@ -10,7 +10,7 @@ import os
 USER_AVATAR = None
 BOT_AVATAR = None
 HOST_IP = os.getenv('HOST_IP', None)
-API_BASE_URL = f"http://{HOST_IP}:8000" if HOST_IP is not None else "http://127.0.0.1:8000"
+API_BASE_URL = f"http://{HOST_IP}:8500" if HOST_IP is not None else "http://127.0.0.1:8500"
 
 
 def prepare_document_payload(file_bytes: bytes, filename: str, session_id: str) -> dict:
