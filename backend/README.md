@@ -53,6 +53,7 @@ VECTOR_DB=chroma python main.py
 
 ## PG Vector
 To check if DB contains right data; use the following commands:
+
 **Setup**
 ```python
 import psycopg2
