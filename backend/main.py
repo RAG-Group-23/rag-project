@@ -287,34 +287,6 @@ def search_embedding(request: SearchEmbeddingRequest) -> list:
 
 
 # ----------------------------------------
-# LLM generation 
-# ----------------------------------------
-
-class LLMGenerateRequest(BaseModel):
-    messages:list[dict]
-    parameters: dict|None = None
-
-@app.post("/llm/generate")
-def generate(request:LLMGenerateRequest) -> str:
-    if request.parameters == None:
-        request.parameters = {}
-
-    response = llm.generate(
-        messages=request.messages,
-        **request.parameters
-    )
-    return response 
-
-
-class GetEmbeddingsRequest(BaseModel):
-    input: list[str]
-    is_query: bool = False
-
-@app.post("/embedder")
-async def get_embeddings(request: GetEmbeddingsRequest) -> list[list[float]]:
-    return embedder.encode(request.input, is_query=request.is_query)
-
-# ----------------------------------------
 # Entrypoint
 # ----------------------------------------
 
