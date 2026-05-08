@@ -5,7 +5,10 @@ import psycopg2
 from abc import ABC, abstractmethod
 from langchain_community.vectorstores import PGVector, Chroma
 from langchain_community.vectorstores import VectorStore
+import hashlib
 
+def document_hash(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 class VectorDBInterface(ABC):
     @abstractmethod
@@ -57,11 +60,11 @@ class PGVectorDBInstance(VectorDBInterface):
     def store_pdf(self, filename: str, file_bytes: bytes) -> str:
         assert self.connection_string is not None, "Please set connection string!"
         self._ensure_documents_table()
-        doc_id = str(uuid.uuid4())
+        doc_id = document_hash(file_bytes)
         with psycopg2.connect(self._pg_conn_string()) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO pdf_documents (doc_id, filename, pdf) VALUES (%s, %s, %s)",
+                    "INSERT INTO pdf_documents (doc_id, filename, pdf) VALUES (%s, %s, %s) ON CONFLICT (doc_id) DO NOTHING",
                     (doc_id, filename, psycopg2.Binary(file_bytes))
                 )
         return doc_id
@@ -118,11 +121,11 @@ class ChromaDBInstance(VectorDBInterface):
 
     def store_pdf(self, filename: str, file_bytes: bytes) -> str:
         os.makedirs(self._pdf_store_dir, exist_ok=True)
-        doc_id = str(uuid.uuid4())
-        # Store as "<doc_id>__<filename>" so fetch_pdf can recover the original name
-        dest = os.path.join(self._pdf_store_dir, f"{doc_id}__{filename}")
-        with open(dest, "wb") as f:
-            f.write(file_bytes)
+        doc_id = document_hash(file_bytes)
+        dest = os.path.join(self._pdf_store_dir, f"{doc_id}.pdf")
+        if not os.path.exists(dest):
+            with open(dest, "wb") as f:
+                f.write(file_bytes)
         return doc_id
 
     def fetch_pdf(self, doc_id: str) -> tuple[str, bytes]:
