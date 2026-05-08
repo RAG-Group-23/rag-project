@@ -122,7 +122,7 @@ class ChromaDBInstance(VectorDBInterface):
     def store_pdf(self, filename: str, file_bytes: bytes) -> str:
         os.makedirs(self._pdf_store_dir, exist_ok=True)
         doc_id = document_hash(file_bytes)
-        dest = os.path.join(self._pdf_store_dir, f"{doc_id}.pdf")
+        dest = os.path.join(self._pdf_store_dir, f"{filename}@{doc_id}.pdf")
         if not os.path.exists(dest):
             with open(dest, "wb") as f:
                 f.write(file_bytes)
@@ -134,7 +134,7 @@ class ChromaDBInstance(VectorDBInterface):
         if not matches:
             raise KeyError(f"No document found for doc_id={doc_id}")
         filepath = os.path.join(self._pdf_store_dir, matches[0])
-        _, original_filename = matches[0].split("__", 1)
+        _, original_filename = matches[0].split("@", 1)
         with open(filepath, "rb") as f:
             return original_filename, f.read()
 
@@ -158,5 +158,5 @@ class ChromaDBInstance(VectorDBInterface):
         vs = self.get_vectorstore()
         search_kwargs = {"k": k}
         if doc_ids is not None:
-            search_kwargs["where"] = {"doc_id": {"$in": doc_ids}}
+            search_kwargs["filter"] = {"doc_id": {"$in": doc_ids}}
         return vs.as_retriever(search_kwargs=search_kwargs)

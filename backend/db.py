@@ -233,3 +233,32 @@ def index_document(
     vectordb.index_documents(chunks)
 
     return doc_id
+
+
+def retrieve_documents(
+    query: str,
+    *,
+    doc_ids: list[str] | None = None,
+    k: int = 4,
+    vectordb: VectorDBInterface | None = None,
+) -> list[Document]:
+    """
+    Retrieve the top-k most relevant chunks for a query.
+
+    Parameters
+    ----------
+    query   : the search string
+    doc_ids : optional list of doc_ids to scope the search to specific documents
+    k       : number of chunks to return (default 4)
+    vectordb: injectable vectordb instance; falls back to the cached default
+
+    Returns
+    -------
+    List of LangChain Documents with page_content and metadata
+    (filename, doc_id, page_index, num_images).
+    """
+    if vectordb is None:
+        vectordb = _cached_default_vectordb()
+
+    retriever = vectordb.as_retriever(doc_ids=doc_ids, k=k)
+    return retriever.invoke(query)

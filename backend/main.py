@@ -11,6 +11,7 @@ from pydantic import BaseModel, validator
 
 from db import (
     index_document,
+    retrieve_documents,
     get_vectordb_dep,
     get_text_splitter_dep,
 )
@@ -275,8 +276,15 @@ def search_embedding(request: SearchEmbeddingRequest) -> list:
     Returns:
         list: Relevant chunks sorted by similarity score.
     """
-    raise NotImplementedError()
+    chunks = retrieve_documents(
+        query=request.query,
+        doc_ids=request.list_of_document_ids,
+    )
 
+    for chunk in chunks:
+        print(chunk)
+
+    return [chunk.page_content for chunk in chunks]
 
 # ----------------------------------------
 # Entrypoint
