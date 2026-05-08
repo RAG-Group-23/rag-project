@@ -14,6 +14,7 @@ from db import (
     get_vectordb_dep,
     get_text_splitter_dep,
 )
+from ml import LLM, Embedder
 
 app = FastAPI(title="RAG Backend API")
 
@@ -27,6 +28,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ----------------------------------------
+# Load models 
+# ----------------------------------------
+
+llm = LLM("ministral/Ministral-3b-instruct")
+embedder = Embedder("Qwen/Qwen3-Embedding-4B")
 
 
 # ----------------------------------------
