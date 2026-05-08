@@ -25,33 +25,58 @@ def prepare_query_payload(query: str, session_id: str, selected_docs: list) -> d
     return {
         "message": query,
         "session_id": session_id,
-        "selected_docs": selected_docs,
+        "doc_ids": selected_docs,
+        "role": "user",
     }
-
-
-def prepare_request(method: str, url: str, payload: dict) -> dict:
-    return {
-        "method": method,
-        "url": url,
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(payload, indent=2)
-    }
-
-
-def mock_send_query(query: str) -> dict:
-    return {"response": "I am not implemented yet"}
 
 
 def fetch_session_conversation(session_id: str) -> list:
-    """
-    Fetch conversation history for a given session from the backend.
-    TODO: implement real API call, e.g.:
-        response = requests.get(f"{API_BASE_URL}/sessions/{session_id}/conversation")
-        return response.json().get("messages", [])
-    """
-    print(
-        f"Not implemented yet — would fetch conversation for session {session_id}")
-    return []
+    """Fetch conversation history for a session from the backend."""
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/sessions/{session_id}/conversation"
+        )
+        if response.status_code == 200:
+            return [
+                {"role": entry["role"], "content": entry["message"]}
+                for entry in response.json()
+            ]
+        else:
+            st.toast(
+                f"Could not load session history ({response.status_code})", icon="⚠️")
+            return []
+    except requests.exceptions.RequestException as e:
+        st.toast(f"Could not reach backend: {e}", icon="⚠️")
+        return []
+
+
+def send_message(session_id: str, role: str, message: str) -> bool:
+    """Append a single message to the session conversation on the backend."""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/sessions/{session_id}/conversation",
+            json={"role": role, "message": message, "doc_ids": []},
+        )
+        return response.status_code == 200
+    except requests.exceptions.RequestException:
+        return False
+
+
+def send_query(query: str, session_id: str, selected_docs: list) -> str:
+    """Send a user query and return the assistant's response text."""
+    payload = prepare_query_payload(query, session_id, selected_docs)
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/sessions/{session_id}/conversation",
+            json=payload,
+        )
+        if response.status_code == 200:
+            return "Not Implemented..."
+            #return response.json().get("response", "_(No response)_")
+        else:
+            return f"_(Backend error {response.status_code})_"
+    except requests.exceptions.RequestException as e:
+        return f"_(Could not reach backend: {e})_"
 
 
 def switch_session(session_id: str):
@@ -219,8 +244,7 @@ st.caption("Ask questions about your uploaded research papers.")
 if not st.session_state.messages:
     with st.chat_message("assistant", avatar=BOT_AVATAR):
         st.markdown(
-            "Hi! Upload a paper from the sidebar and ask me anything about it. "
-            "_(Responses are mocked for now.)_"
+            "Hi! Upload a paper from the sidebar and ask me anything about it."
         )
 
 for msg in st.session_state.messages:
@@ -238,27 +262,19 @@ if uploaded_docs and not selected_docs:
 query = st.chat_input("Ask a question about your documents...")
 
 if query:
+    # 1. Show and persist the user message
     st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(query)
+    #send_message(session_id, "user", query)
 
+    # 2. Get and show the assistant response
     selected_docs = st.session_state.get("selected_docs", [])
-    query_payload = prepare_query_payload(query, short_id, selected_docs)
-    conversation_request = prepare_request(
-        method="POST",
-        url=f"/sessions/{short_id}/conversation",
-        payload=query_payload,
-    )
-    
-    print("DEBUG: Conversation Req", conversation_request)
-
     with st.chat_message("assistant", avatar=BOT_AVATAR):
         with st.spinner("Thinking..."):
-            time.sleep(0.4)
-            api_response = mock_send_query(query)
-        st.markdown(api_response["response"])
+            answer = send_query(query, session_id, selected_docs)
+        st.markdown(answer)
 
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": api_response["response"],
-    })
+    # 3. Persist the assistant response
+    st.session_state.messages.append({"role": "assistant", "content": answer})
+    send_message(session_id, "assistant", answer)
