@@ -14,6 +14,7 @@ from db import (
     retrieve_documents,
     get_vectordb_dep,
     get_text_splitter_dep,
+    VectorDBInterface,
 )
 
 app = FastAPI(title="RAG Backend API")
@@ -269,16 +270,14 @@ class SearchEmbeddingRequest(BaseModel):
 
 
 @app.post("/search/embedding")
-def search_embedding(request: SearchEmbeddingRequest) -> list:
-    """
-    Embedding similarity search over a specified set of documents.
-
-    Returns:
-        list: Relevant chunks sorted by similarity score.
-    """
+def search_embedding(
+    request: SearchEmbeddingRequest,
+    vectordb: VectorDBInterface = Depends(get_vectordb_dep),
+) -> list:
     chunks = retrieve_documents(
         query=request.query,
         doc_ids=request.list_of_document_ids,
+        vectordb=vectordb,
     )
 
     for chunk in chunks:
