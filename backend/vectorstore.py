@@ -76,7 +76,7 @@ class PGVectorDBInstance(VectorDBInterface):
             with conn.cursor() as cur:
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS pdf_documents (
-                        doc_id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        doc_id      TEXT PRIMARY KEY,
                         filename    TEXT NOT NULL,
                         pdf         BYTEA NOT NULL,
                         uploaded_at TIMESTAMPTZ DEFAULT now()
