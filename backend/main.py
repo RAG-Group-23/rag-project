@@ -194,12 +194,12 @@ def add_document(
     request: AddDocumentRequest,
     vectordb=Depends(get_vectordb_dep),
     text_splitter=Depends(get_text_splitter_dep),
-) -> bool:
+) -> str:
     """
     Decode, store, and index a base64-encoded PDF.
 
     Returns:
-        bool: True if indexed successfully.
+        str: id of the indexed document
     """
     try:
         file_bytes = base64.b64decode(request.raw_document)

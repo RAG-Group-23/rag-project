@@ -182,7 +182,7 @@ def index_document(
     filename: str = "",
     vectordb: Optional[VectorDBInterface] = None,
     text_splitter: Any = None,
-) -> bool:
+) -> str:
     """
     Store a raw PDF and index its text chunks in the vector store.
 
@@ -232,4 +232,4 @@ def index_document(
     # 5. Index
     vectordb.index_documents(chunks)
 
-    return True
+    return doc_id
