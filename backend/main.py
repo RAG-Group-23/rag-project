@@ -16,7 +16,6 @@ from db import (
     get_text_splitter_dep,
     VectorDBInterface,
 )
-from ml import LLM, Embedder
 
 app = FastAPI(title="RAG Backend API")
 
@@ -34,10 +33,13 @@ app.add_middleware(
 # ----------------------------------------
 # Load models 
 # ----------------------------------------
-
-llm = LLM("ministral/Ministral-3b-instruct")
-embedder = Embedder("Qwen/Qwen3-Embedding-4B")
-
+if os.getenv("LOAD_MODELS", "false").lower() == "true":
+    from ml import LLM, Embedder
+    llm = LLM("ministral/Ministral-3b-instruct")
+    embedder = Embedder("Qwen/Qwen3-Embedding-4B")
+else:
+    llm = None
+    embedder = None
 
 # ----------------------------------------
 # Lifecycle
@@ -46,8 +48,9 @@ embedder = Embedder("Qwen/Qwen3-Embedding-4B")
 @app.on_event("startup")
 async def startup_event():
     """Verify DB connectivity and initialise schema on startup."""
-    from db import init_db
-    init_db()
+    if os.getenv("VECTOR_DB", "chroma") == "pgvector":
+        from db import init_db
+        init_db()
 
 
 # ----------------------------------------
