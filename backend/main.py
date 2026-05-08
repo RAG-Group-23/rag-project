@@ -15,6 +15,8 @@ from db import (
     get_vectordb_dep,
     get_text_splitter_dep,
     VectorDBInterface,
+    store_message,
+    fetch_conversation,
 )
 
 app = FastAPI(title="RAG Backend API")
@@ -134,39 +136,71 @@ def get_sessions() -> list:
 # Conversation management
 # ----------------------------------------
 
-class CreateConversation(BaseModel):
+class CreateOrUpdateConversation(BaseModel):
     message: str
+    role: str
+    doc_ids: list[str]
+
+
+class ConversationEntry(BaseModel):
+    role: str
+    message: str
+    sent_at: str  # ISO-8601 UTC string
+
+
+def _append_message(session_id: str, request: CreateOrUpdateConversation) -> bool:
+    """Shared logic for POST and PUT — both simply append a message."""
+    store_message(session_id=session_id, role=request.role,
+                  message=request.message)
+    return True
 
 
 @app.post("/sessions/{session_id}/conversation")
 def create_conversation_for_session(
-    session_id: str, request: CreateConversation
+    session_id: str, request: CreateOrUpdateConversation
 ) -> bool:
     """
-    Create a conversation mapped to a session and trigger a backend response.
-
+    Start or append to a conversation for a session.
+ 
     Returns:
-        bool: True if created successfully.
+        bool: True if stored successfully.
     """
-    raise NotImplementedError()
-
-
-class UpdateConversation(BaseModel):
-    message: str
+    return _append_message(session_id, request)
 
 
 @app.put("/sessions/{session_id}/conversation")
 def update_conversation_of_session(
-    session_id: str, request: UpdateConversation
+    session_id: str, request: CreateOrUpdateConversation
 ) -> bool:
     """
-    Append a user message to an existing session's conversation
-    and trigger a backend response.
-
+    Append a message to an existing session's conversation.
+ 
     Returns:
-        bool: True if updated successfully.
+        bool: True if stored successfully.
     """
-    raise NotImplementedError()
+    return _append_message(session_id, request)
+
+
+@app.get("/sessions/{session_id}/conversation")
+def get_conversation_for_session(
+    session_id: str,
+) -> list[ConversationEntry]:
+    """
+    Retrieve the full message history for a session in chronological order.
+ 
+    Returns:
+        List of messages with role, content, and timestamp.
+    """
+    messages = fetch_conversation(session_id=session_id)
+    return [
+        ConversationEntry(
+            role=m["role"],
+            message=m["message"],
+            sent_at=m["sent_at"].isoformat(),
+        )
+        for m in messages
+    ]
+
 
 
 @app.get("/sessions/{session_id}/conversation")

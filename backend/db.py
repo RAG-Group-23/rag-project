@@ -90,6 +90,22 @@ def init_db():
             );
         """)
 
+        # conversations table — stores chat history keyed by session_id.
+        # Ordered by sent_at; BIGSERIAL id is a tie-breaker for same-ms inserts.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS conversations (
+                id         BIGSERIAL PRIMARY KEY,
+                session_id TEXT        NOT NULL,
+                role       TEXT        NOT NULL,
+                message    TEXT        NOT NULL,
+                sent_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+            );
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS conversations_session_id_sent_at_idx
+                ON conversations (session_id, sent_at ASC);
+        """)
+
         conn.commit()
         cur.close()
         conn.close()
@@ -196,8 +212,8 @@ def index_document(
 
     Returns
     -------
-    bool
-        True on success; propagates exceptions on failure.
+    str
+        doc_id on success; propagates exceptions on failure.
     """
     print("Test")
     if vectordb is None:
@@ -262,3 +278,52 @@ def retrieve_documents(
 
     retriever = vectordb.as_retriever(doc_ids=doc_ids, k=k)
     return retriever.invoke(query)
+
+
+# ----------------------------------------
+# Conversation history
+# ----------------------------------------
+
+def store_message(
+    session_id: str,
+    role: str,
+    message: str,
+    *,
+    vectordb: VectorDBInterface | None = None,
+) -> None:
+    """
+    Append a single message to a conversation session.
+
+    Parameters
+    ----------
+    session_id : unique identifier for the chat session
+    role       : speaker — 'user' or 'assistant'
+    message    : message text
+    vectordb   : injectable vectordb instance; falls back to the cached default
+    """
+    if vectordb is None:
+        vectordb = _cached_default_vectordb()
+    vectordb.store_message(session_id=session_id, role=role, message=message)
+
+
+def fetch_conversation(
+    session_id: str,
+    *,
+    vectordb: VectorDBInterface | None = None,
+) -> list[dict]:
+    """
+    Return the full message history for a session in chronological order.
+
+    Parameters
+    ----------
+    session_id : unique identifier for the chat session
+    vectordb   : injectable vectordb instance; falls back to the cached default
+
+    Returns
+    -------
+    List of dicts with keys: role (str), message (str), sent_at (datetime UTC).
+    Returns an empty list if the session has no history.
+    """
+    if vectordb is None:
+        vectordb = _cached_default_vectordb()
+    return vectordb.fetch_conversation(session_id=session_id)
