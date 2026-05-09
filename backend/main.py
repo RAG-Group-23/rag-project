@@ -7,7 +7,9 @@ import os
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, field_validator
+from contextlib import asynccontextmanager
+
 
 from db import (
     index_document,
@@ -17,9 +19,18 @@ from db import (
     VectorDBInterface,
     store_message,
     fetch_conversation,
+    get_document_ids,
+    get_session_ids,
 )
 
-app = FastAPI(title="RAG Backend API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if os.getenv("VECTOR_DB", "chroma") == "pgvector":
+        from db import init_db
+        init_db()
+    yield
+
+app = FastAPI(title="RAG Backend API", lifespan=lifespan)
 
 # Enable CORS for the frontend reverse proxy.
 # The frontend server (not the browser) makes requests to this backend,
@@ -47,12 +58,7 @@ else:
 # Lifecycle
 # ----------------------------------------
 
-@app.on_event("startup")
-async def startup_event():
-    """Verify DB connectivity and initialise schema on startup."""
-    if os.getenv("VECTOR_DB", "chroma") == "pgvector":
-        from db import init_db
-        init_db()
+
 
 
 # ----------------------------------------
@@ -121,15 +127,12 @@ def get_session(session_id: str) -> dict:
 
 
 @app.get("/sessions")
-def get_sessions() -> list:
-    """
-    List all sessions (metadata only, no conversation content).
-    Intended for populating the session list on the frontend.
-
-    Returns:
-        list: Metadata for each session.
-    """
-    raise NotImplementedError()
+def get_sessions(vectordb=Depends(get_vectordb_dep)) -> list[str]:
+    try:
+        return get_session_ids(vectordb=vectordb)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving sessions: {e}")
 
 
 # ----------------------------------------
@@ -223,13 +226,15 @@ class AddDocumentRequest(BaseModel):
     filename: str
     session_id: str
 
-    @validator("raw_document")
+    @field_validator("raw_document")
+    @classmethod
     def validate_base64(cls, v):
         if not v or not v.strip():
             raise ValueError("raw_document cannot be empty")
         return v
 
-    @validator("filename")
+    @field_validator("filename")
+    @classmethod
     def validate_filename(cls, v):
         if not v or not v.strip():
             raise ValueError("filename cannot be empty")
@@ -276,6 +281,21 @@ def get_document(document_id: str) -> dict:
         dict: Document content and metadata.
     """
     raise NotImplementedError()
+
+
+@app.get("/documents")
+def get_documents(vectordb=Depends(get_vectordb_dep)) -> dict[str, str]:
+    """
+    Retrieve document ids of all indexed documents
+    Returns:
+        dict: Document id and associated filenames
+    """
+    try:
+        return get_document_ids(vectordb=vectordb)
+    except Exception as e:
+        print("Error", e)
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving documents: {e}")
 
 
 @app.delete("/documents/{document_id}")

@@ -279,6 +279,10 @@ def retrieve_documents(
     retriever = vectordb.as_retriever(doc_ids=doc_ids, k=k)
     return retriever.invoke(query)
 
+def get_document_ids(vectordb: VectorDBInterface | None = None) -> list[str]:
+    if vectordb is None:
+        vectordb = _cached_default_vectordb()
+    return vectordb.get_document_ids()
 
 # ----------------------------------------
 # Conversation history
@@ -327,3 +331,6 @@ def fetch_conversation(
     if vectordb is None:
         vectordb = _cached_default_vectordb()
     return vectordb.fetch_conversation(session_id=session_id)
+
+def get_session_ids(vectordb: VectorDBInterface) -> list[str]:
+    return vectordb.get_session_ids()

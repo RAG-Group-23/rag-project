@@ -55,6 +55,17 @@ class VectorDBInterface(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_document_ids(self) -> dict[str, str]:
+        """Return a mapping of {doc_id: filename} for all stored documents."""
+        pass
+    
+
+    @abstractmethod
+    def get_session_ids(self) -> list[str]:
+        """Return all session IDs that have at least one message."""
+        pass
+        
 
 class PGVectorDBInstance(VectorDBInterface):
     def __init__(self, embedding_func, collection_name):
@@ -158,6 +169,16 @@ class PGVectorDBInstance(VectorDBInterface):
                     for role, message, sent_at in cur.fetchall()
                 ]
 
+    def get_session_ids(self) -> list[str]:
+        self._ensure_conversations_table()
+        with psycopg2.connect(self._pg_conn_string()) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT DISTINCT session_id FROM conversations
+                    ORDER BY session_id
+                """)
+                return [row[0] for row in cur.fetchall()]
+
     def index_documents(self, documents: list) -> VectorStore:
         assert self.connection_string is not None, "Please set connection string!"
         self.vectorstore = PGVector.from_documents(
@@ -167,6 +188,16 @@ class PGVectorDBInstance(VectorDBInterface):
             collection_name=self.collection_name
         )
         return self.vectorstore
+
+    def get_document_ids(self) -> dict[str, str]:
+        assert self.connection_string is not None, "Please set connection string!"
+        self._ensure_documents_table()
+        with psycopg2.connect(self._pg_conn_string()) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT doc_id, filename FROM pdf_documents ORDER BY uploaded_at ASC")
+                return {doc_id: filename for doc_id, filename in cur.fetchall()}
+
 
     def get_vectorstore(self) -> VectorStore:
         assert self.connection_string is not None, "Please set connection string!"
@@ -249,6 +280,15 @@ class ChromaDBInstance(VectorDBInterface):
             for entry in raw  # already in insertion (ascending) order
         ]
 
+    def get_session_ids(self) -> list[str]:
+        if not os.path.exists(self._conv_store_dir):
+            return []
+        return [
+            f.removesuffix(".json")
+            for f in os.listdir(self._conv_store_dir)
+            if f.endswith(".json")
+        ]
+
     def index_documents(self, documents: list) -> VectorStore:
         self.vectorstore = Chroma.from_documents(
             documents=documents,
@@ -256,6 +296,15 @@ class ChromaDBInstance(VectorDBInterface):
             persist_directory=self.persist_directory
         )
         return self.vectorstore
+
+    def get_document_ids(self) -> dict[str, str]:
+        if not os.path.exists(self._pdf_store_dir):
+            return {}
+        return {
+            f.split("@")[1].removesuffix(".pdf"): f.split("@")[0]
+            for f in os.listdir(self._pdf_store_dir)
+            if f.endswith(".pdf")
+        }
 
     def get_vectorstore(self) -> VectorStore:
         if self.vectorstore is None:
