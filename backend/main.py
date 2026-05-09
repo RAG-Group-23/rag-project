@@ -143,14 +143,15 @@ class ConversationEntry(BaseModel):
 
 
 def _append_message(session_id: str, request: CreateOrUpdateConversation, vectordb: VectorDBInterface | None = None) -> str:
-    prompt = request.message  # fallback
-
+    prompt = request.message  
     if request.role == "user" and request.doc_ids:
         chunks = retrieve_documents(
             query=request.message,
             doc_ids=request.doc_ids,
             vectordb=vectordb,
         )
+        
+        # TODO for @MartynasKucys: Replace the following with prompt_builder & generator and return generator output
         context = '\n'.join([c.page_content[:100] for c in chunks])
         prompt = f'[MSG]:{request.message}\n[DOCS]:\n{context}'
 
