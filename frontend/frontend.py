@@ -50,6 +50,30 @@ def fetch_session_conversation(session_id: str) -> list:
         return []
 
 
+def fetch_all_documents() -> dict:
+    """Fetch all documents stored in the backend, returns {doc_id: filename}."""
+    try:
+        response = requests.get(f"{API_BASE_URL}/documents")
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.toast(
+                f"Could not load documents ({response.status_code})", icon="⚠️")
+            return {}
+    except requests.exceptions.RequestException as e:
+        st.toast(f"Could not reach backend: {e}", icon="⚠️")
+        return {}
+
+
+def fetch_all_sessions() -> list[str]:
+    try:
+        response = requests.get(f"{API_BASE_URL}/sessions")
+        if response.status_code == 200:
+            return response.json()
+        return []
+    except requests.exceptions.RequestException:
+        return []
+
 def send_message(session_id: str, role: str, message: str) -> bool:
     """Append a single message to the session conversation on the backend."""
     try:
@@ -95,14 +119,8 @@ def save_current_session_meta():
     if sid not in st.session_state.all_sessions:
         st.session_state.all_sessions[sid] = {
             "label": f"Session {sid[:6]}",
-            "created_at": time.strftime("%H:%M %d/%m/%y"),
-            "uploaded_docs": [],
+            "created_at": time.strftime("%H:%M %d/%m/%y")
         }
-    # Keep uploaded_docs in sync
-    st.session_state.all_sessions[sid]["uploaded_docs"] = dict(
-        st.session_state.uploaded_docs
-    )
-
 
 # UI Config
 st.set_page_config(
@@ -116,16 +134,21 @@ if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid4())
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "uploaded_docs" not in st.session_state:
-    st.session_state.uploaded_docs = {}  # {doc_id: filename}
+if "all_docs" not in st.session_state:
+    st.session_state.all_docs = fetch_all_documents()
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
 if "all_sessions" not in st.session_state:
-    # Dict keyed by full session UUID; stores display metadata
     st.session_state.all_sessions = {}
+    for sid in fetch_all_sessions():
+        st.session_state.all_sessions[sid] = {
+            "label": f"Session {sid[:6]}",
+            "created_at": "—",
+            "uploaded_docs": {},
+        }
 
 # Make sure the current session is always registered
-save_current_session_meta()
+# save_current_session_meta()
 
 session_id = st.session_state.session_id
 short_id = session_id[:6]
@@ -144,7 +167,6 @@ with st.sidebar:
         new_id = str(uuid4())
         st.session_state.session_id = new_id
         st.session_state.messages = []
-        st.session_state.uploaded_docs = {}  # {doc_id: filename}
         st.session_state.uploader_key += 1
         save_current_session_meta()
         st.rerun()
@@ -174,7 +196,7 @@ with st.sidebar:
             for sid, meta in reversed(list(all_sessions.items())):
                 is_active = sid == session_id
                 label = f"{'🟢 ' if is_active else ''}{meta['label']}"
-                help_text = f"Created {meta['created_at']} · {len(meta.get('uploaded_docs', {}))} doc(s)"
+                help_text = f"Created {meta['created_at']}"
                 btn_type = "primary" if is_active else "secondary"
 
                 if st.button(
@@ -201,33 +223,30 @@ with st.sidebar:
     )
 
     for uploaded_file in uploaded_files:
-        if uploaded_file.name not in st.session_state.uploaded_docs.values():
-            file_bytes = uploaded_file.read()
-            doc_payload = prepare_document_payload(
-                file_bytes, uploaded_file.name, short_id
+        file_bytes = uploaded_file.read()
+        doc_payload = prepare_document_payload(
+            file_bytes, uploaded_file.name, short_id
+        )
+        with st.spinner(f"Uploading {uploaded_file.name}..."):
+            response = requests.post(
+                f"{API_BASE_URL}/documents",
+                json=doc_payload,
             )
-            with st.spinner(f"Uploading {uploaded_file.name}..."):
-                response = requests.post(
-                    f"{API_BASE_URL}/documents",
-                    json=doc_payload,
-                )
-            if response.status_code == 200:
-                document_id = response.json()
-                st.session_state.uploaded_docs[document_id] = uploaded_file.name
-                save_current_session_meta()
-                st.toast(f"{uploaded_file.name} uploaded!", icon="✅")
-            else:
-                st.toast(f"❌ Upload failed ({response.status_code})", icon="❌")
+        if response.status_code == 200:
+            st.session_state.all_docs = fetch_all_documents()  # refresh globally
+            st.toast(f"{uploaded_file.name} uploaded!", icon="✅")
+        else:
+            st.toast(f"❌ Upload failed ({response.status_code})", icon="❌")
 
     if uploaded_files:
         st.session_state.uploader_key += 1
         st.rerun()
 
     # ── Document list (scrollable + selectable) ────────────────────────────
-    if st.session_state.uploaded_docs:
+    if st.session_state.all_docs:
         with st.container(height=200):
             selected_doc_ids = []
-            for doc_id, filename in st.session_state.uploaded_docs.items():
+            for doc_id, filename in st.session_state.all_docs.items():
                 checked = st.checkbox(f"📄 {filename}", key=f"doc_{doc_id}")
                 if checked:
                     selected_doc_ids.append(doc_id)
@@ -253,7 +272,7 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 selected_docs = st.session_state.get("selected_docs", [])
-uploaded_docs = st.session_state.get("uploaded_docs", [])
+uploaded_docs = st.session_state.get("all_docs", {})
 
 if uploaded_docs and not selected_docs:
     st.warning(
