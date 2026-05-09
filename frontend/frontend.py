@@ -95,7 +95,7 @@ def send_query(query: str, session_id: str, selected_docs: list) -> str:
             json=payload,
         )
         if response.status_code == 200:
-            return "Not Implemented..."
+            return response.json()  # backend now returns a plain string
             #return response.json().get("response", "_(No response)_")
         else:
             return f"_(Backend error {response.status_code})_"
