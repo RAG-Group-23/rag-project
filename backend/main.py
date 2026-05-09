@@ -54,17 +54,10 @@ else:
     llm = None
     embedder = None
 
-# ----------------------------------------
-# Lifecycle
-# ----------------------------------------
-
-
-
 
 # ----------------------------------------
 # Health / root
 # ----------------------------------------
-
 @app.get("/")
 async def root():
     return {"message": "RAG Backend API", "status": "running"}
@@ -92,7 +85,6 @@ async def health():
 # ----------------------------------------
 # Session management
 # ----------------------------------------
-
 @app.post("/sessions")
 def create_session() -> str:
     """
@@ -138,7 +130,6 @@ def get_sessions(vectordb=Depends(get_vectordb_dep)) -> list[str]:
 # ----------------------------------------
 # Conversation management
 # ----------------------------------------
-
 class CreateOrUpdateConversation(BaseModel):
     message: str
     role: str
@@ -151,37 +142,50 @@ class ConversationEntry(BaseModel):
     sent_at: str  # ISO-8601 UTC string
 
 
-def _append_message(session_id: str, request: CreateOrUpdateConversation) -> bool:
-    """Shared logic for POST and PUT — both simply append a message."""
+def _append_message(session_id: str, request: CreateOrUpdateConversation, vectordb: VectorDBInterface | None = None) -> str:
+    prompt = request.message  # fallback
+
+    if request.role == "user" and request.doc_ids:
+        chunks = retrieve_documents(
+            query=request.message,
+            doc_ids=request.doc_ids,
+            vectordb=vectordb,
+        )
+        context = '\n'.join([c.page_content[:100] for c in chunks])
+        prompt = f'[MSG]:{request.message}\n[DOCS]:\n{context}'
+
     store_message(session_id=session_id, role=request.role,
                   message=request.message)
-    return True
-
+    return prompt
 
 @app.post("/sessions/{session_id}/conversation")
 def create_conversation_for_session(
-    session_id: str, request: CreateOrUpdateConversation
-) -> bool:
+    session_id: str, 
+    request: CreateOrUpdateConversation,
+    vectordb=Depends(get_vectordb_dep),
+) -> str:
     """
     Start or append to a conversation for a session.
  
     Returns:
         bool: True if stored successfully.
     """
-    return _append_message(session_id, request)
+    return _append_message(session_id, request, vectordb)
 
 
 @app.put("/sessions/{session_id}/conversation")
 def update_conversation_of_session(
-    session_id: str, request: CreateOrUpdateConversation
-) -> bool:
+    session_id: str, 
+    request: CreateOrUpdateConversation,
+    vectordb=Depends(get_vectordb_dep),
+) -> str:
     """
     Append a message to an existing session's conversation.
  
     Returns:
         bool: True if stored successfully.
     """
-    return _append_message(session_id, request)
+    return _append_message(session_id, request, vectordb)
 
 
 @app.get("/sessions/{session_id}/conversation")
