@@ -83,11 +83,27 @@ def init_db():
         # separately; this table is only for raw-file retrieval.
         cur.execute("""
             CREATE TABLE IF NOT EXISTS pdf_documents (
-                doc_id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                doc_id      TEXT PRIMARY KEY,
                 filename    TEXT NOT NULL,
                 pdf         BYTEA NOT NULL,
                 uploaded_at TIMESTAMPTZ DEFAULT now()
             );
+        """)
+
+        # conversations table — stores chat history keyed by session_id.
+        # Ordered by sent_at; BIGSERIAL id is a tie-breaker for same-ms inserts.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS conversations (
+                id         BIGSERIAL PRIMARY KEY,
+                session_id TEXT        NOT NULL,
+                role       TEXT        NOT NULL,
+                message    TEXT        NOT NULL,
+                sent_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+            );
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS conversations_session_id_sent_at_idx
+                ON conversations (session_id, sent_at ASC);
         """)
 
         conn.commit()
@@ -182,7 +198,7 @@ def index_document(
     filename: str = "",
     vectordb: Optional[VectorDBInterface] = None,
     text_splitter: Any = None,
-) -> bool:
+) -> str:
     """
     Store a raw PDF and index its text chunks in the vector store.
 
@@ -196,8 +212,8 @@ def index_document(
 
     Returns
     -------
-    bool
-        True on success; propagates exceptions on failure.
+    str
+        doc_id on success; propagates exceptions on failure.
     """
     print("Test")
     if vectordb is None:
@@ -232,4 +248,89 @@ def index_document(
     # 5. Index
     vectordb.index_documents(chunks)
 
-    return True
+    return doc_id
+
+
+def retrieve_documents(
+    query: str,
+    *,
+    doc_ids: list[str] | None = None,
+    k: int = 4,
+    vectordb: VectorDBInterface | None = None,
+) -> list[Document]:
+    """
+    Retrieve the top-k most relevant chunks for a query.
+
+    Parameters
+    ----------
+    query   : the search string
+    doc_ids : optional list of doc_ids to scope the search to specific documents
+    k       : number of chunks to return (default 4)
+    vectordb: injectable vectordb instance; falls back to the cached default
+
+    Returns
+    -------
+    List of LangChain Documents with page_content and metadata
+    (filename, doc_id, page_index, num_images).
+    """
+    if vectordb is None:
+        vectordb = _cached_default_vectordb()
+
+    retriever = vectordb.as_retriever(doc_ids=doc_ids, k=k)
+    return retriever.invoke(query)
+
+def get_document_ids(vectordb: VectorDBInterface | None = None) -> list[str]:
+    if vectordb is None:
+        vectordb = _cached_default_vectordb()
+    return vectordb.get_document_ids()
+
+# ----------------------------------------
+# Conversation history
+# ----------------------------------------
+
+def store_message(
+    session_id: str,
+    role: str,
+    message: str,
+    *,
+    vectordb: VectorDBInterface | None = None,
+) -> None:
+    """
+    Append a single message to a conversation session.
+
+    Parameters
+    ----------
+    session_id : unique identifier for the chat session
+    role       : speaker — 'user' or 'assistant'
+    message    : message text
+    vectordb   : injectable vectordb instance; falls back to the cached default
+    """
+    if vectordb is None:
+        vectordb = _cached_default_vectordb()
+    vectordb.store_message(session_id=session_id, role=role, message=message)
+
+
+def fetch_conversation(
+    session_id: str,
+    *,
+    vectordb: VectorDBInterface | None = None,
+) -> list[dict]:
+    """
+    Return the full message history for a session in chronological order.
+
+    Parameters
+    ----------
+    session_id : unique identifier for the chat session
+    vectordb   : injectable vectordb instance; falls back to the cached default
+
+    Returns
+    -------
+    List of dicts with keys: role (str), message (str), sent_at (datetime UTC).
+    Returns an empty list if the session has no history.
+    """
+    if vectordb is None:
+        vectordb = _cached_default_vectordb()
+    return vectordb.fetch_conversation(session_id=session_id)
+
+def get_session_ids(vectordb: VectorDBInterface) -> list[str]:
+    return vectordb.get_session_ids()
