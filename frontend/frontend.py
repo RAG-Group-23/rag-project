@@ -9,6 +9,7 @@ import os
 USER_AVATAR = None
 BOT_AVATAR = None
 HOST_IP = os.getenv('HOST_IP', None)
+print("HOST_IP: ", HOST_IP)
 API_BASE_URL = f"http://{HOST_IP}:8500" if HOST_IP is not None else "http://127.0.0.1:8500"
 
 
@@ -90,7 +91,7 @@ def send_query(query: str, session_id: str, selected_docs: list) -> str:
     """Send a user query and return the assistant's response text."""
     payload = prepare_query_payload(query, session_id, selected_docs)
     try:
-        response = requests.post(
+        response = requests.put(
             f"{API_BASE_URL}/sessions/{session_id}/conversation",
             json=payload,
         )
@@ -260,6 +261,9 @@ with st.sidebar:
 st.title("Research Paper RAG 📚")
 st.caption("Ask questions about your uploaded research papers.")
 
+
+st.session_state.messages = fetch_session_conversation(session_id)
+
 if not st.session_state.messages:
     with st.chat_message("assistant", avatar=BOT_AVATAR):
         st.markdown(
@@ -285,7 +289,7 @@ if query:
     st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(query)
-    #send_message(session_id, "user", query)
+    # send_message(session_id, "user", query)
 
     # 2. Get and show the assistant response
     selected_docs = st.session_state.get("selected_docs", [])
@@ -295,5 +299,5 @@ if query:
         st.markdown(answer)
 
     # 3. Persist the assistant response
-    st.session_state.messages.append({"role": "assistant", "content": answer})
-    send_message(session_id, "assistant", answer)
+    # st.session_state.messages.append({"role": "assistant", "content": answer})
+    # send_message(session_id, "assistant", answer)

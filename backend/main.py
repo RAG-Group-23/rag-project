@@ -47,10 +47,12 @@ app.add_middleware(
 # Load models 
 # ----------------------------------------
 if os.getenv("LOAD_MODELS", "false").lower() == "true":
+    print("Loading models")
     from ml import LLM, Embedder
-    llm = LLM("ministral/Ministral-3b-instruct")
+    llm = LLM("google/gemma-3-4b-it")
     embedder = Embedder("Qwen/Qwen3-Embedding-4B")
 else:
+    print("Skipping models loading")
     llm = None
     embedder = None
 
@@ -143,21 +145,22 @@ class ConversationEntry(BaseModel):
 
 
 def _append_message(session_id: str, request: CreateOrUpdateConversation, vectordb: VectorDBInterface | None = None) -> str:
-    prompt = request.message  
-    if request.role == "user" and request.doc_ids:
-        chunks = retrieve_documents(
-            query=request.message,
-            doc_ids=request.doc_ids,
-            vectordb=vectordb,
-        )
+    # prompt = request.message  
+    # if request.role == "user" and request.doc_ids:
+    #     chunks = retrieve_documents(
+    #         query=request.message,
+    #         doc_ids=request.doc_ids,
+    #         vectordb=vectordb,
+    #     )
         
-        # TODO for @MartynasKucys: Replace the following with prompt_builder & generator and return generator output
-        context = '\n'.join([c.page_content[:100] for c in chunks])
-        prompt = f'[MSG]:{request.message}\n[DOCS]:\n{context}'
+    #     # TODO for @MartynasKucys: Replace the following with prompt_builder & generator and return generator output
+    #     context = '\n'.join([c.page_content[:100] for c in chunks])
+    #     prompt = f'[MSG]:{request.message}\n[DOCS]:\n{context}'
 
     store_message(session_id=session_id, role=request.role,
                   message=request.message)
-    return prompt
+    # return prompt
+    return request.message
 
 @app.post("/sessions/{session_id}/conversation")
 def create_conversation_for_session(
@@ -186,7 +189,22 @@ def update_conversation_of_session(
     Returns:
         bool: True if stored successfully.
     """
-    return _append_message(session_id, request, vectordb)
+    _append_message(session_id, request, vectordb)
+
+    conversation = [{"role":message.role, "content":message.message} for message in get_conversation_for_session(session_id)]
+    chunks = retrieve_documents(
+        query=request.message,
+        doc_ids=request.doc_ids,
+        vectordb=vectordb,
+    )
+
+    response = llm.generate(conversation, chunks)
+    response_request = CreateOrUpdateConversation(
+        message=response,
+        role="assistant",
+        doc_ids=[])
+    _append_message(session_id, response_request, vectordb)
+    return response
 
 
 @app.get("/sessions/{session_id}/conversation")
