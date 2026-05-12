@@ -3,7 +3,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, Gemma3ForCondition
 from sentence_transformers import SentenceTransformer
 from prompts import MAIN_ASSISTANT_PROMPT
 from transformers import BitsAndBytesConfig
-
+import os 
 
 class LLM:
     def __init__(self, model_name:str, load_model=True):
@@ -19,13 +19,14 @@ class LLM:
                         device_map="cuda" if torch.cuda.is_available() else "cpu"
                     )
             case "google/gemma-3-4b-it":
+                model_name_or_path = "../google-gemma-3-4b-it" if os.path.exists("../google-gemma-3-4b-it") else "google/gemma-3-4b-it"
                 self.model = Gemma3ForConditionalGeneration.from_pretrained(
-                    model_name,
+                    model_name_or_path,
                     device_map="cuda" if torch.cuda.is_available() else "cpu",
                     dtype=torch.bfloat16,
                     quantization_config=BitsAndBytesConfig(load_in_8bit=True)
                 ).eval()
-                self.processor = AutoProcessor.from_pretrained(model_name)
+                self.processor = AutoProcessor.from_pretrained(model_name_or_path)
             case _:
                 raise ValueError(f"Unsupported model name: {self.model_name}")
 
