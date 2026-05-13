@@ -9,7 +9,6 @@ import os
 USER_AVATAR = None
 BOT_AVATAR = None
 HOST_IP = os.getenv('HOST_IP', None)
-print("HOST_IP: ", HOST_IP)
 API_BASE_URL = f"http://{HOST_IP}:8500" if HOST_IP is not None else "http://127.0.0.1:8500"
 
 
