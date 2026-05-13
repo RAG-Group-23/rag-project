@@ -109,6 +109,10 @@ def init_db():
         conn.commit()
         cur.close()
         conn.close()
+
+        vectordb = get_default_vectordb()
+        vectordb.init_vector_table()
+
         print("Database initialised successfully.")
     except Exception as e:
         print(f"Database initialisation error: {e}")
@@ -279,6 +283,7 @@ def retrieve_documents(
     retriever = vectordb.as_retriever(doc_ids=doc_ids, k=k)
     return retriever.invoke(query)
 
+
 def get_document_ids(vectordb: VectorDBInterface | None = None) -> list[str]:
     if vectordb is None:
         vectordb = _cached_default_vectordb()
@@ -287,6 +292,7 @@ def get_document_ids(vectordb: VectorDBInterface | None = None) -> list[str]:
 # ----------------------------------------
 # Conversation history
 # ----------------------------------------
+
 
 def store_message(
     session_id: str,
@@ -331,6 +337,7 @@ def fetch_conversation(
     if vectordb is None:
         vectordb = _cached_default_vectordb()
     return vectordb.fetch_conversation(session_id=session_id)
+
 
 def get_session_ids(vectordb: VectorDBInterface) -> list[str]:
     return vectordb.get_session_ids()

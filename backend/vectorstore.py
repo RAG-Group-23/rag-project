@@ -18,6 +18,10 @@ def document_hash(data: bytes) -> str:
 
 class VectorDBInterface(ABC):
     @abstractmethod
+    def init_vector_table(self):
+        pass
+
+    @abstractmethod
     def index_documents(self, documents: list) -> VectorStore:
         pass
 
@@ -79,20 +83,30 @@ class PGVectorDBInstance(VectorDBInterface):
         self.vectorstore = None
 
     def set_connection_string(self, user: str, password: str, host: str, dbname: str, port: int = 5432):
-        # psycopg3 driver for langchain_postgres
         self.connection_string = f"postgresql+psycopg://{user}:{password}@{host}:{port}/{dbname}"
-        # plain psycopg2 connection string for direct DB calls (pdf/conversation tables)
         self._raw_conn_string = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
-
         self.engine = PGEngine.from_connection_string(
             url=self.connection_string)
-        try:
+
+    def init_vector_table(self) -> None:
+        """Create the vector table if it doesn't exist. Safe to call at startup."""
+        assert self.engine is not None, "Call set_connection_string first."
+        exists = self._vector_table_exists()
+        if not exists:
             self.engine.init_vectorstore_table(
                 table_name=self.collection_name,
                 vector_size=self.vector_size,
+                content_column="content",
             )
-        except Exception:
-            print(f"INFO: Table {self.collection_name} exists, no init needed")
+
+    def _vector_table_exists(self) -> bool:
+        with psycopg2.connect(self._raw_conn_string) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT to_regclass(%s)",
+                    (f"public.{self.collection_name}",)
+                )
+                return cur.fetchone()[0] is not None
 
     def _ensure_documents_table(self):
         with psycopg2.connect(self._raw_conn_string) as conn:
@@ -211,6 +225,7 @@ class PGVectorDBInstance(VectorDBInterface):
                 engine=self.engine,
                 table_name=self.collection_name,
                 embedding_service=self.embedding,
+                content_column="content"
             )
         return self.vectorstore
 
@@ -230,6 +245,9 @@ class ChromaDBInstance(VectorDBInterface):
         self.vectorstore = None
         self._pdf_store_dir = os.path.join(persist_directory, "pdfs")
         self._conv_store_dir = os.path.join(persist_directory, "conversations")
+
+    def init_vector_table(self) -> None:
+        pass
 
     def store_pdf(self, filename: str, file_bytes: bytes) -> str:
         os.makedirs(self._pdf_store_dir, exist_ok=True)
