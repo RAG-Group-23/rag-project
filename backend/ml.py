@@ -43,7 +43,7 @@ class LLM:
             #-----ministral/Ministral-3b-instruct------------------------ 
             #------------------------------------------------------------ 
             case "ministral/Ministral-3b-instruct":
-                print(f"Conversation: {messages}")
+                # print(f"Conversation: {messages}")
 
                 prompt = self.tokenizer.apply_chat_template(
                     messages,
@@ -125,7 +125,7 @@ class LLM:
             #------------------------------------------------------------ 
             case "google/gemma-3-4b-it":
                 import json 
-                print(json.dumps(conversation, indent=2))
+                # print(json.dumps(conversation, indent=2))
                 for i, msg in enumerate(conversation):
                     conversation[i]["content"] = [{"type": "text", "text":msg["content"]}]
 
