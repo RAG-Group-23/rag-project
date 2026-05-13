@@ -123,3 +123,11 @@ Size: 59
 ('19e5d5c4-d34b-4944-aa9b-f6c77fee0630', {'num_images': 5, 'filename': 'MT_with_ChatGPT.pdf', 'doc_id': '62770a86-db91-4e36-b17a-4826f4dddc4d', 'page_index': 0})
 ('b7f0e67a-4f8f-4571-8f4b-2be7e4f97bf9', {'num_images': 4, 'filename': 'MT_with_ChatGPT.pdf', 'doc_id': '62770a86-db91-4e36-b17a-4826f4dddc4d', 'page_index': 1})
 ```
+
+# Troubleshooting
+## PGVector DB Start Up Issues
+In some cases, PGVector DB may not have terminated successfully which may cause `/dhlib/postmaster.pid` to remain. At the next start up, PGVector DB refuses to start as that file still exists. To fix this, run this inside the shell:
+```sh
+rm /dhlib/postmaster.pid
+```
+Then restart the application.
