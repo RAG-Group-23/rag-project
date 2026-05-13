@@ -8,7 +8,7 @@ import os
 class LLM:
     def __init__(self, model_name:str, load_model=True):
         self.model_name = model_name
-
+        self.root = os.getenv("MODEL_ROOT", "/files")
         match model_name:
             case "ministral/Ministral-3b-instruct":
                 self.tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -19,7 +19,7 @@ class LLM:
                         device_map="cuda" if torch.cuda.is_available() else "cpu"
                     )
             case "google/gemma-3-4b-it":
-                model_name_or_path = "../google-gemma-3-4b-it" if os.path.exists("../google-gemma-3-4b-it") else "google/gemma-3-4b-it"
+                model_name_or_path = f"{self.root}/google-gemma-3-4b-it" if os.path.exists(f"{self.root}/google-gemma-3-4b-it") else "google/gemma-3-4b-it"
                 self.model = Gemma3ForConditionalGeneration.from_pretrained(
                     model_name_or_path,
                     device_map="cuda" if torch.cuda.is_available() else "cpu",
