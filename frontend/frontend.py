@@ -75,18 +75,6 @@ def fetch_all_sessions() -> list[str]:
     except requests.exceptions.RequestException:
         return []
 
-def send_message(session_id: str, role: str, message: str) -> bool:
-    """Append a single message to the session conversation on the backend."""
-    try:
-        response = requests.post(
-            f"{API_BASE_URL}/sessions/{session_id}/conversation",
-            json={"role": role, "message": message, "doc_ids": []},
-        )
-        return response.status_code == 200
-    except requests.exceptions.RequestException:
-        return False
-
-
 def send_query(query: str, session_id: str, selected_docs: list) -> str:
     """Send a user query and return the assistant's response text."""
     payload = prepare_query_payload(query, session_id, selected_docs)
@@ -149,7 +137,7 @@ if "all_sessions" not in st.session_state:
         }
 
 # Make sure the current session is always registered
-# save_current_session_meta()
+save_current_session_meta()
 
 session_id = st.session_state.session_id
 short_id = session_id[:6]
@@ -289,7 +277,6 @@ if query:
     st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(query)
-    # send_message(session_id, "user", query)
 
     # 2. Get and show the assistant response
     selected_docs = st.session_state.get("selected_docs", [])
@@ -299,5 +286,4 @@ if query:
         st.markdown(answer)
 
     # 3. Persist the assistant response
-    # st.session_state.messages.append({"role": "assistant", "content": answer})
-    # send_message(session_id, "assistant", answer)
+    st.session_state.messages.append({"role": "assistant", "content": answer})
