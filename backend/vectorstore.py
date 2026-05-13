@@ -18,10 +18,6 @@ def document_hash(data: bytes) -> str:
 
 class VectorDBInterface(ABC):
     @abstractmethod
-    def init_vector_table(self):
-        pass
-
-    @abstractmethod
     def index_documents(self, documents: list) -> VectorStore:
         pass
 
@@ -93,6 +89,7 @@ class PGVectorDBInstance(VectorDBInterface):
         assert self.engine is not None, "Call set_connection_string first."
         exists = self._vector_table_exists()
         if not exists:
+            print("INFO: Vector Table does not exist, creating one...")
             self.engine.init_vectorstore_table(
                 table_name=self.collection_name,
                 vector_size=self.vector_size,
@@ -225,7 +222,6 @@ class PGVectorDBInstance(VectorDBInterface):
                 engine=self.engine,
                 table_name=self.collection_name,
                 embedding_service=self.embedding,
-                content_column="content"
             )
         return self.vectorstore
 
@@ -245,10 +241,7 @@ class ChromaDBInstance(VectorDBInterface):
         self.vectorstore = None
         self._pdf_store_dir = os.path.join(persist_directory, "pdfs")
         self._conv_store_dir = os.path.join(persist_directory, "conversations")
-
-    def init_vector_table(self) -> None:
-        pass
-
+        
     def store_pdf(self, filename: str, file_bytes: bytes) -> str:
         os.makedirs(self._pdf_store_dir, exist_ok=True)
         doc_id = document_hash(file_bytes)

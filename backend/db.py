@@ -15,7 +15,7 @@ Vector-DB backend selection:
     VECTOR_DB       "pgvector" (default on Nuvolos) | "chroma" (local dev)
 
 pgvector-specific:
-    PGVECTOR_COLLECTION   collection / table name (default "my_documents")
+    PGVECTOR_COLLECTION   collection / table name (default "chunks")
     -- connection reuses DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASSWORD
 
 ChromaDB-specific (local dev only):
@@ -67,7 +67,7 @@ def get_db_connection():
     )
 
 
-def init_db():
+def init_pgvector_db():
     """
     Ensure the pgvector extension and any application-level tables exist.
     Called once at FastAPI startup.
@@ -110,9 +110,6 @@ def init_db():
         cur.close()
         conn.close()
 
-        vectordb = get_default_vectordb()
-        vectordb.init_vector_table()
-
         print("Database initialised successfully.")
     except Exception as e:
         print(f"Database initialisation error: {e}")
@@ -147,9 +144,8 @@ def get_default_vectordb(embedding: Optional[Any] = None) -> VectorDBInterface:
         print("Using PGVector DB")
         db = PGVectorDBInstance(
             embedding_func=embedding,
-            collection_name=os.getenv("PGVECTOR_COLLECTION", "my_documents"),
+            collection_name=os.getenv("PGVECTOR_COLLECTION", "chunks"),
         )
-        # Reuse the same Nuvolos DB credentials for the vector store
         db.set_connection_string(
             user=DB_USER,
             password=DB_PASSWORD,
@@ -157,6 +153,7 @@ def get_default_vectordb(embedding: Optional[Any] = None) -> VectorDBInterface:
             dbname=DB_NAME,
             port=int(DB_PORT),
         )
+        db.init_vector_table()
         return db
 
     if backend == "chroma":
