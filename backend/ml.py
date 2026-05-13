@@ -124,7 +124,7 @@ class LLM:
             #-----google/gemma-3-4b-it----------------------------------- 
             #------------------------------------------------------------ 
             case "google/gemma-3-4b-it":
-                import json 
+                # import json 
                 # print(json.dumps(conversation, indent=2))
                 for i, msg in enumerate(conversation):
                     conversation[i]["content"] = [{"type": "text", "text":msg["content"]}]
