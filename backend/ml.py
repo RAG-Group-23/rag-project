@@ -23,7 +23,7 @@ class LLM:
                 self.model = Gemma3ForConditionalGeneration.from_pretrained(
                     model_name_or_path,
                     device_map="cuda" if torch.cuda.is_available() else "cpu",
-                    dtype=torch.float16,
+                    dtype=torch.bfloat16,
                     quantization_config=BitsAndBytesConfig(load_in_8bit=True)
                 ).eval()
                 self.processor = AutoProcessor.from_pretrained(model_name_or_path)
