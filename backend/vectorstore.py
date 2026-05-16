@@ -1,4 +1,3 @@
-# vectorstore.py
 import os
 import json
 import uuid

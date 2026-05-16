@@ -134,7 +134,7 @@ def chunk_pages(
                         page_content=chunk_text,
                         metadata={
                             "document_id": document_id,
-                            "page": page_number,
+                            "page_index": page_number,
                             "section": section_title,
                             "section_index": section_index,
                             "local_chunk_index": local_chunk_index,

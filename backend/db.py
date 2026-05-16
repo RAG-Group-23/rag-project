@@ -41,6 +41,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from vectorstore import VectorDBInterface, PGVectorDBInstance, ChromaDBInstance
 from text_extractor import extract_text_and_images_from_paper
+from chunker import chunk_pages
 
 
 # ----------------------------------------
@@ -198,30 +199,9 @@ def index_document(
     *,
     filename: str = "",
     vectordb: Optional[VectorDBInterface] = None,
-    text_splitter: Any = None,
 ) -> str:
-    """
-    Store a raw PDF and index its text chunks in the vector store.
-
-    Steps
-    -----
-    1. Extract per-page text (and image counts) from the PDF bytes.
-    2. Persist the raw PDF via vectordb.store_pdf() and obtain a doc_id.
-    3. Wrap each page as a LangChain Document with metadata.
-    4. Chunk the documents with the text splitter.
-    5. Index the chunks into the vector store.
-
-    Returns
-    -------
-    str
-        doc_id on success; propagates exceptions on failure.
-    """
-    print("Test")
     if vectordb is None:
         vectordb = _cached_default_vectordb()
-        print("Got VectorDB")
-    if text_splitter is None:
-        text_splitter = get_default_text_splitter()
 
     # 1. Extract text & image references from the PDF
     pages = extract_text_and_images_from_paper(BytesIO(file_bytes))
@@ -229,28 +209,22 @@ def index_document(
     # 2. Persist raw PDF
     doc_id = vectordb.store_pdf(filename=filename, file_bytes=file_bytes)
 
-    # 3. Build LangChain Documents
-    lc_pages = [
-        Document(
-            page_content=page.texts or "",
-            metadata={
-                "num_images": len(page.images),
-                "filename": filename,
-                "doc_id": doc_id,
-                "page_index": i,
-            },
-        )
-        for i, page in enumerate(pages)
-    ]
+    # 3. Chunk pages with research-paper-aware chunker
+    chunks = chunk_pages(
+        pages,
+        document_id=doc_id,
+        chunk_size=int(os.getenv("CHUNK_SIZE", "1200")),
+        chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "150")),
+    )
 
-    # 4. Chunk
-    chunks = text_splitter.split_documents(lc_pages)
+    # 4. Add fields expected by retrieval / prompt formatting
+    for chunk in chunks:
+        chunk.metadata["filename"] = filename
+        chunk.metadata["doc_id"] = doc_id
 
     # 5. Index
     vectordb.index_documents(chunks)
-
     return doc_id
-
 
 def retrieve_documents(
     query: str,

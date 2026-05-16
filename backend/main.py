@@ -61,8 +61,9 @@ class MockLLM:
         for i, doc in enumerate(documents):
             filename = doc.metadata.get("filename", "unknown file")
             page = doc.metadata.get("page_index", "?")
+            section = doc.metadata.get("section", "?")
             snippet = doc.page_content[:200].replace("\n", " ")
-            lines.append(f"[{i}] {filename} p.{page}: {snippet}...")
+            lines.append(f"[{i}] {filename} p.{page}: section: {section} {snippet}...")
         return f'User msg: {user_msg}\n\n\n' + "\n\n\n".join(lines)
 
 class MockEmbedder:
@@ -297,8 +298,7 @@ def add_document(
         return index_document(
             file_bytes,
             filename=request.filename,
-            vectordb=vectordb,
-            text_splitter=text_splitter,
+            vectordb=vectordb
         )
     except Exception as e:
         print("Error", e)
