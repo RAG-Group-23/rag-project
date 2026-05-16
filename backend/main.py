@@ -26,8 +26,8 @@ from db import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if os.getenv("VECTOR_DB", "chroma") == "pgvector":
-        from db import init_db
-        init_db()
+        from db import init_pgvector_db
+        init_pgvector_db()
     yield
 
 app = FastAPI(title="RAG Backend API", lifespan=lifespan)

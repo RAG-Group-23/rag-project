@@ -5,9 +5,11 @@ import uuid
 import psycopg2
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from langchain_community.vectorstores import PGVector, Chroma
+from langchain_community.vectorstores import Chroma
 from langchain_community.vectorstores import VectorStore
 import hashlib
+from langchain_postgres import PGEngine, PGVectorStore
+from psycopg.errors import DuplicateTable
 
 
 def document_hash(data: bytes) -> str:
@@ -59,31 +61,52 @@ class VectorDBInterface(ABC):
     def get_document_ids(self) -> dict[str, str]:
         """Return a mapping of {doc_id: filename} for all stored documents."""
         pass
-    
 
     @abstractmethod
     def get_session_ids(self) -> list[str]:
         """Return all session IDs that have at least one message."""
         pass
-        
+
 
 class PGVectorDBInstance(VectorDBInterface):
-    def __init__(self, embedding_func, collection_name):
+    def __init__(self, embedding_func, collection_name, vector_size: int = 384):
         self.connection_string = None
+        self._raw_conn_string = None
         self.embedding = embedding_func
         self.collection_name = collection_name
+        self.vector_size = vector_size
+        self.engine = None
         self.vectorstore = None
 
     def set_connection_string(self, user: str, password: str, host: str, dbname: str, port: int = 5432):
-        DRIVER = "psycopg2"
-        self.connection_string = f"postgresql+{DRIVER}://{user}:{password}@{host}:{port}/{dbname}"
+        self.connection_string = f"postgresql+psycopg://{user}:{password}@{host}:{port}/{dbname}"
+        self._raw_conn_string = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
+        self.engine = PGEngine.from_connection_string(
+            url=self.connection_string)
 
-    def _pg_conn_string(self) -> str:
-        """Plain psycopg2 connection string (no SQLAlchemy driver prefix)."""
-        return self.connection_string.replace("postgresql+psycopg2://", "postgresql://")
+    def init_vector_table(self) -> None:
+        """Create the vector table if it doesn't exist. Safe to call at startup."""
+        assert self.engine is not None, "Call set_connection_string first."
+        exists = self._vector_table_exists()
+        if not exists:
+            print("INFO: Vector Table does not exist, creating one...")
+            self.engine.init_vectorstore_table(
+                table_name=self.collection_name,
+                vector_size=self.vector_size,
+                content_column="content",
+            )
+
+    def _vector_table_exists(self) -> bool:
+        with psycopg2.connect(self._raw_conn_string) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT to_regclass(%s)",
+                    (f"public.{self.collection_name}",)
+                )
+                return cur.fetchone()[0] is not None
 
     def _ensure_documents_table(self):
-        with psycopg2.connect(self._pg_conn_string()) as conn:
+        with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS pdf_documents (
@@ -95,7 +118,7 @@ class PGVectorDBInstance(VectorDBInterface):
                 """)
 
     def _ensure_conversations_table(self):
-        with psycopg2.connect(self._pg_conn_string()) as conn:
+        with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS conversations (
@@ -112,10 +135,10 @@ class PGVectorDBInstance(VectorDBInterface):
                 """)
 
     def store_pdf(self, filename: str, file_bytes: bytes) -> str:
-        assert self.connection_string is not None, "Please set connection string!"
+        assert self._raw_conn_string is not None, "Please set connection string!"
         self._ensure_documents_table()
         doc_id = document_hash(file_bytes)
-        with psycopg2.connect(self._pg_conn_string()) as conn:
+        with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     "INSERT INTO pdf_documents (doc_id, filename, pdf) VALUES (%s, %s, %s) ON CONFLICT (doc_id) DO NOTHING",
@@ -124,8 +147,8 @@ class PGVectorDBInstance(VectorDBInterface):
         return doc_id
 
     def fetch_pdf(self, doc_id: str) -> tuple[str, bytes]:
-        assert self.connection_string is not None, "Please set connection string!"
-        with psycopg2.connect(self._pg_conn_string()) as conn:
+        assert self._raw_conn_string is not None, "Please set connection string!"
+        with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     "SELECT filename, pdf FROM pdf_documents WHERE doc_id = %s",
@@ -138,22 +161,19 @@ class PGVectorDBInstance(VectorDBInterface):
                 return filename, bytes(pdf_bytes)
 
     def store_message(self, session_id: str, role: str, message: str) -> None:
-        assert self.connection_string is not None, "Please set connection string!"
+        assert self._raw_conn_string is not None, "Please set connection string!"
         self._ensure_conversations_table()
-        with psycopg2.connect(self._pg_conn_string()) as conn:
+        with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    """
-                    INSERT INTO conversations (session_id, role, message)
-                    VALUES (%s, %s, %s)
-                    """,
+                    "INSERT INTO conversations (session_id, role, message) VALUES (%s, %s, %s)",
                     (session_id, role, message)
                 )
 
     def fetch_conversation(self, session_id: str) -> list[dict]:
-        assert self.connection_string is not None, "Please set connection string!"
+        assert self._raw_conn_string is not None, "Please set connection string!"
         self._ensure_conversations_table()
-        with psycopg2.connect(self._pg_conn_string()) as conn:
+        with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -170,8 +190,9 @@ class PGVectorDBInstance(VectorDBInterface):
                 ]
 
     def get_session_ids(self) -> list[str]:
+        assert self._raw_conn_string is not None, "Please set connection string!"
         self._ensure_conversations_table()
-        with psycopg2.connect(self._pg_conn_string()) as conn:
+        with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT DISTINCT session_id FROM conversations
@@ -179,33 +200,28 @@ class PGVectorDBInstance(VectorDBInterface):
                 """)
                 return [row[0] for row in cur.fetchall()]
 
-    def index_documents(self, documents: list) -> VectorStore:
-        assert self.connection_string is not None, "Please set connection string!"
-        self.vectorstore = PGVector.from_documents(
-            documents=documents,
-            embedding=self.embedding,
-            connection_string=self.connection_string,
-            collection_name=self.collection_name
-        )
-        return self.vectorstore
-
     def get_document_ids(self) -> dict[str, str]:
-        assert self.connection_string is not None, "Please set connection string!"
+        assert self._raw_conn_string is not None, "Please set connection string!"
         self._ensure_documents_table()
-        with psycopg2.connect(self._pg_conn_string()) as conn:
+        with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT doc_id, filename FROM pdf_documents ORDER BY uploaded_at ASC")
+                    "SELECT doc_id, filename FROM pdf_documents ORDER BY uploaded_at ASC"
+                )
                 return {doc_id: filename for doc_id, filename in cur.fetchall()}
 
+    def index_documents(self, documents: list) -> PGVectorStore:
+        vs = self.get_vectorstore()
+        vs.add_documents(documents)
+        return vs
 
-    def get_vectorstore(self) -> VectorStore:
-        assert self.connection_string is not None, "Please set connection string!"
+    def get_vectorstore(self) -> PGVectorStore:
+        assert self.engine is not None, "Please set connection string first!"
         if self.vectorstore is None:
-            self.vectorstore = PGVector(
-                connection_string=self.connection_string,
-                embedding_function=self.embedding,
-                collection_name=self.collection_name
+            self.vectorstore = PGVectorStore.create_sync(
+                engine=self.engine,
+                table_name=self.collection_name,
+                embedding_service=self.embedding,
             )
         return self.vectorstore
 
@@ -225,7 +241,7 @@ class ChromaDBInstance(VectorDBInterface):
         self.vectorstore = None
         self._pdf_store_dir = os.path.join(persist_directory, "pdfs")
         self._conv_store_dir = os.path.join(persist_directory, "conversations")
-
+        
     def store_pdf(self, filename: str, file_bytes: bytes) -> str:
         os.makedirs(self._pdf_store_dir, exist_ok=True)
         doc_id = document_hash(file_bytes)
