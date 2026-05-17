@@ -3,6 +3,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, Gemma3ForCondition
 from sentence_transformers import SentenceTransformer
 from prompts import MAIN_ASSISTANT_PROMPT
 from transformers import BitsAndBytesConfig
+from langchain_core.documents import Document
 import os
 
 
@@ -40,9 +41,30 @@ class LLM:
             case _:
                 raise ValueError(f"Unsupported model name: {self.model_name}")
 
+    @staticmethod
+    def _format_doc_header(i: int, doc: Document) -> str:
+        """Build a citation header from a retrieved chunk's metadata.
+
+        Uses ``page`` when present (set by the chunker for every chunk).
+        Falls back to a ``page_start``/``page_end`` range, then to "?".
+        """
+        meta = doc.metadata or {}
+        filename = meta.get("filename") or "unknown"
+        section = meta.get("section") or "—"
+        page = meta.get("page")
+        ps = meta.get("page_start")
+        pe = meta.get("page_end")
+        if page is not None:
+            page_str = f"p. {page}"
+        elif ps is not None and pe is not None:
+            page_str = f"p. {ps}" if ps == pe else f"pp. {ps}-{pe}"
+        else:
+            page_str = "p. ?"
+        return f"[{i} document] {filename} — Section: {section} ({page_str})"
+
     def generate(self,
                  messages: list[dict],
-                 documents: list[str],
+                 documents: list[Document],
                  max_new_tokens: int = 200,
                  temperature: float = 0.7,
                  top_p: float = 0.9,
@@ -106,7 +128,7 @@ class LLM:
             case _:
                 raise ValueError(f"Unsupported model name: {self.model_name}")
 
-    def format_prompt(self, conversation: list[dict], documents: list[str]):
+    def format_prompt(self, conversation: list[dict], documents: list[Document]):
         match self.model_name:
 
             # ------------------------------------------------------------
@@ -119,7 +141,8 @@ class LLM:
                 conversation[-1]["content"] += "\n\nRetrieved documents:"
 
                 for i, doc in enumerate(documents):
-                    conversation[-1]["content"] += f"\n[{i} document]\n {doc}\n"
+                    header = self._format_doc_header(i, doc)
+                    conversation[-1]["content"] += f"\n{header}\n{doc.page_content}\n"
 
                 if len(documents) == 0:
                     conversation[-1]["content"] += f"No relevant documents were found.\n"
@@ -147,7 +170,8 @@ class LLM:
                 conversation[-1]["content"][0]["text"] += "\n\nRetrieved documents:"
 
                 for i, doc in enumerate(documents):
-                    conversation[-1]["content"][0]["text"] += f"\n[{i} document]\n {doc}\n"
+                    header = self._format_doc_header(i, doc)
+                    conversation[-1]["content"][0]["text"] += f"\n{header}\n{doc.page_content}\n"
 
                 if len(documents) == 0:
                     conversation[-1]["content"][0]["text"] += f"No relevant documents were found.\n"
