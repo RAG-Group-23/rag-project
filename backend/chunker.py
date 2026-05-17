@@ -1,8 +1,8 @@
 """
 Section-aware chunker for research-paper PDFs.
 
-Consumes the output of ``extractor.extract_sections`` — a list of
-:class:`~extractor.Section` objects — and produces LangChain ``Document``
+Consumes the output of ``text_extractor.extract_sections`` — a list of
+:class:`~text_extractor.Section` objects — and produces LangChain ``Document``
 objects ready for embedding and retrieval.
 
 All size limits (``chunk_size``, ``chunk_overlap``, ``min_section_tokens``)
