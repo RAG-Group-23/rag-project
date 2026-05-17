@@ -60,10 +60,10 @@ class MockLLM:
         lines = []
         for i, doc in enumerate(documents):
             filename = doc.metadata.get("filename", "unknown file")
-            page = doc.metadata.get("page_index", "?")
+            page = doc.metadata.get("page", "?")
             section = doc.metadata.get("section", "?")
             snippet = doc.page_content[:200].replace("\n", " ")
-            lines.append(f"[{i}] {filename} p.{page}: section: {section} {snippet}...")
+            lines.append(f"[{i}] {filename} [p.{page}] [section: {section}] \n\n {snippet}...")
         return f'User msg: {user_msg}\n\n\n' + "\n\n\n".join(lines)
 
 class MockEmbedder:

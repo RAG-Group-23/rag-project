@@ -40,8 +40,8 @@ from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from vectorstore import VectorDBInterface, PGVectorDBInstance, ChromaDBInstance
-from text_extractor import extract_text_and_images_from_paper
-from chunker import chunk_pages
+from text_extractor import extract_sections
+from chunker import chunk_sections
 
 
 # ----------------------------------------
@@ -204,17 +204,17 @@ def index_document(
         vectordb = _cached_default_vectordb()
 
     # 1. Extract text & image references from the PDF
-    pages = extract_text_and_images_from_paper(BytesIO(file_bytes))
+    sections = extract_sections(BytesIO(file_bytes))
 
     # 2. Persist raw PDF
     doc_id = vectordb.store_pdf(filename=filename, file_bytes=file_bytes)
 
     # 3. Chunk pages with research-paper-aware chunker
-    chunks = chunk_pages(
-        pages,
+    chunks = chunk_sections(
+        sections,
         document_id=doc_id,
-        chunk_size=int(os.getenv("CHUNK_SIZE", "1200")),
-        chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "150")),
+        chunk_size=int(os.getenv("CHUNK_SIZE", "256")),
+        chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "64")),
     )
 
     # 4. Add fields expected by retrieval / prompt formatting
