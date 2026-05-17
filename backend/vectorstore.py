@@ -227,7 +227,7 @@ class PGVectorDBInstance(VectorDBInterface):
     def as_retriever(self, doc_ids: list[str] | None = None, k: int = 4):
         vs = self.get_vectorstore()
         search_kwargs = {"k": k}
-        if doc_ids is not None:
+        if doc_ids:
             search_kwargs["filter"] = {"doc_id": {"$in": doc_ids}}
         return vs.as_retriever(search_kwargs=search_kwargs)
 
@@ -332,6 +332,6 @@ class ChromaDBInstance(VectorDBInterface):
     def as_retriever(self, doc_ids: list[str] | None = None, k: int = 4):
         vs = self.get_vectorstore()
         search_kwargs = {"k": k}
-        if doc_ids is not None:
+        if doc_ids:
             search_kwargs["filter"] = {"doc_id": {"$in": doc_ids}}
         return vs.as_retriever(search_kwargs=search_kwargs)
