@@ -162,6 +162,7 @@ class LLM:
                     tokenize=True,
                     add_generation_prompt=True,
                 )
+                print("DEBUG: Prompt\n", final_prompt)
                 return final_prompt
 
             # ------------------------------------------------------------
