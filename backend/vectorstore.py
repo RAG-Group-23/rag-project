@@ -137,7 +137,7 @@ class PGVectorDBInstance(VectorDBInterface):
         with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO pdf_documents (document_id, filename, pdf) VALUES (%s, %s, %s) ON CONFLICT (doc_id) DO NOTHING",
+                    "INSERT INTO pdf_documents (document_id, filename, pdf) VALUES (%s, %s, %s) ON CONFLICT (document_id) DO NOTHING",
                     (doc_id, filename, psycopg2.Binary(file_bytes))
                 )
         return doc_id
@@ -252,7 +252,7 @@ class ChromaDBInstance(VectorDBInterface):
         matches = [f for f in os.listdir(
             self._pdf_store_dir) if f.startswith(doc_id)]
         if not matches:
-            raise KeyError(f"No document found for doc_id={doc_id}")
+            raise KeyError(f"No document found for document_id={doc_id}")
         filepath = os.path.join(self._pdf_store_dir, matches[0])
         _, original_filename = matches[0].split("@", 1)
         with open(filepath, "rb") as f:
