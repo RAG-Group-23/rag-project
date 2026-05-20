@@ -38,6 +38,16 @@ class LLM:
                 ).eval()
                 self.processor = AutoProcessor.from_pretrained(
                     model_name_or_path)
+
+
+            case "HuggingFaceTB/SmolLM2-360M-Instruct":
+                self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+                if load_model:
+                    self.model = AutoModelForCausalLM.from_pretrained(
+                        model_name,
+                        torch_dtype=torch.float32,
+                        device_map="cpu"
+                    )
             case _:
                 raise ValueError(f"Unsupported model name: {self.model_name}")
 
@@ -74,7 +84,7 @@ class LLM:
             # ------------------------------------------------------------
             # -----ministral/Ministral-3b-instruct------------------------
             # ------------------------------------------------------------
-            case "ministral/Ministral-3b-instruct":
+            case "HuggingFaceTB/SmolLM2-360M-Instruct" | "ministral/Ministral-3b-instruct":
                 # print(f"Conversation: {messages}")
 
                 prompt = self.tokenizer.apply_chat_template(
@@ -134,7 +144,7 @@ class LLM:
             # ------------------------------------------------------------
             # ------ministral/Ministral-3b-instruct-----------------------
             # ------------------------------------------------------------
-            case  "ministral/Ministral-3b-instruct":
+            case "HuggingFaceTB/SmolLM2-360M-Instruct" | "ministral/Ministral-3b-instruct":
                 conversation = [
                     {"role": "system", "content": MAIN_ASSISTANT_PROMPT}] + conversation
 
@@ -194,15 +204,20 @@ class LLM:
 class Embedder:
     def __init__(self, model_name: str):
         self.model_name = model_name
-
         match self.model_name:
-
             # this model was chosen mostly at random.
             # It has a hight score on the MTEB benchmark, and is relatively small, which should make it faster to run.
             case "Qwen/Qwen3-Embedding-4B":
                 self.model = SentenceTransformer(
                     "Qwen/Qwen3-Embedding-4B",
                     device="cuda" if torch.cuda.is_available() else "cpu"
+                )
+                
+
+            case "sentence-transformers/all-MiniLM-L6-v2":
+                self.model = SentenceTransformer(
+                    "sentence-transformers/all-MiniLM-L6-v2",
+                    device="cpu"
                 )
 
             case _:
@@ -214,27 +229,29 @@ class Embedder:
             is_query = False
 
         match self.model_name:
-
             case "Qwen/Qwen3-Embedding-4B":
                 return self.model.encode(
                     input,
                     prompt_name="query" if is_query else "document",
                     device="cuda" if torch.cuda.is_available() else "cpu"
                 ).tolist()
+                
+            case "sentence-transformers/all-MiniLM-L6-v2":
+                return self.model.encode(input).tolist()
 
             case _:
                 raise ValueError(f"Unsupported model name: {self.model_name}")
 
 
 if __name__ == "__main__":
-    llm = LLM("ministral/Ministral-3b-instruct")
+    llm = LLM("HuggingFaceTB/SmolLM2-360M-Instruct")
     messages = [
         {"role": "user", "content": "Explain what attention is in a transformer model."}
     ]
     print("response: ")
-    print(llm.generate(messages))
+    print(llm.generate(messages, []))
 
-    embedding_model = Embedder("Qwen/Qwen3-Embedding-4B")
+    embedding_model = Embedder("sentence-transformers/all-MiniLM-L6-v2")
 
     texts = [
         "Some text",
