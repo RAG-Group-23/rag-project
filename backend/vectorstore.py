@@ -1,15 +1,12 @@
 import os
 import json
-import uuid
 import psycopg2
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from langchain_community.vectorstores import Chroma
 from langchain_community.vectorstores import VectorStore
 import hashlib
 from langchain_postgres import PGEngine, PGVectorStore
-from psycopg.errors import DuplicateTable
-
+from langchain_chroma import Chroma
 
 def document_hash(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()

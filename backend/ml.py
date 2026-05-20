@@ -12,6 +12,14 @@ class LLM:
         self.model_name = model_name
         self.root = os.getenv("MODEL_ROOT", "/files")
         match model_name:
+            case "Qwen/Qwen2.5-0.5B-Instruct":
+                self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+                if load_model:
+                    self.model = AutoModelForCausalLM.from_pretrained(
+                        model_name,
+                        torch_dtype=torch.float32,  # CPU-safe
+                        device_map="cpu"
+                    )
             case "ministral/Ministral-3b-instruct":
                 model_name_or_path = f"{self.root}/Ministral-3b-instruct" if os.path.exists(
                     f"{self.root}/Ministral-3b-instruct") else "ministral/Ministral-3b-instruct"
@@ -84,7 +92,7 @@ class LLM:
             # ------------------------------------------------------------
             # -----ministral/Ministral-3b-instruct------------------------
             # ------------------------------------------------------------
-            case "HuggingFaceTB/SmolLM2-360M-Instruct" | "ministral/Ministral-3b-instruct":
+            case "ministral/Ministral-3b-instruct" | "HuggingFaceTB/SmolLM2-360M-Instruct" | "Qwen/Qwen2.5-0.5B-Instruct":
                 # print(f"Conversation: {messages}")
 
                 prompt = self.tokenizer.apply_chat_template(
@@ -141,10 +149,11 @@ class LLM:
     def format_prompt(self, conversation: list[dict], documents: list[Document]):
         match self.model_name:
 
+
             # ------------------------------------------------------------
-            # ------ministral/Ministral-3b-instruct-----------------------
+            # -----Models suitable for local testing
             # ------------------------------------------------------------
-            case "HuggingFaceTB/SmolLM2-360M-Instruct" | "ministral/Ministral-3b-instruct":
+            case "ministral/Ministral-3b-instruct" | "HuggingFaceTB/SmolLM2-360M-Instruct" | "Qwen/Qwen2.5-0.5B-Instruct":
                 conversation = [
                     {"role": "system", "content": MAIN_ASSISTANT_PROMPT}] + conversation
 
@@ -245,24 +254,24 @@ class Embedder:
 
 
 if __name__ == "__main__":
-    llm = LLM("HuggingFaceTB/SmolLM2-360M-Instruct")
+    llm = LLM("Qwen/Qwen2.5-0.5B-Instruct")
     messages = [
         {"role": "user", "content": "Explain what attention is in a transformer model."}
     ]
     print("response: ")
     print(llm.generate(messages, []))
 
-    embedding_model = Embedder("sentence-transformers/all-MiniLM-L6-v2")
+    # embedding_model = Embedder("sentence-transformers/all-MiniLM-L6-v2")
 
-    texts = [
-        "Some text",
-        "Some other text"
-    ]
+    # texts = [
+    #     "Attention is cool",
+    #     "Some other text"
+    # ]
 
-    embeddings = embedding_model.encode(texts, is_query=True)
-    print(embeddings[0][:10])
-    embeddings = embedding_model.encode(texts, is_query=False)
-    print(embeddings[0][:10])
+    # embeddings = embedding_model.encode(texts, is_query=True)
+    # print(embeddings[0][:10])
+    # embeddings = embedding_model.encode(texts, is_query=False)
+    # print(embeddings[0][:10])
 
     while True:
         pass

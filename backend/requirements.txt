@@ -11,7 +11,8 @@ psycopg2-binary==2.9.9
 langchain-community
 langchain-core
 langchain-text-splitters
-langchain_postgres
+langchain_postgres==0.0.17
+langchain-chroma==1.1.0
 pgvector
 chromadb
 
