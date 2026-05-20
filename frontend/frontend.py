@@ -10,7 +10,18 @@ USER_AVATAR = None
 BOT_AVATAR = None
 HOST_IP = os.getenv('HOST_IP', None)
 API_BASE_URL = f"http://{HOST_IP}:8500" if HOST_IP is not None else "http://127.0.0.1:8500"
+STREAM_RESPONSE = os.getenv("STREAM_RESPONSE", "true").lower() == "true"
 
+def handle_answer(st, answer):
+    if STREAM_RESPONSE:
+    # Simulate streaming
+        def stream_response():
+            for word in answer.split(" "):
+                yield word + " "
+                time.sleep(0.05)
+        displayed = st.write_stream(stream_response())
+    else:
+        st.markdown(answer)
 
 def prepare_document_payload(file_bytes: bytes, filename: str, session_id: str) -> dict:
     encoded = base64.b64encode(file_bytes).decode("utf-8")
@@ -282,7 +293,15 @@ if query:
     with st.chat_message("assistant", avatar=BOT_AVATAR):
         with st.spinner("Thinking..."):
             answer = send_query(query, session_id, selected_docs)
-        st.markdown(answer)
+        handle_answer(st, answer)
+        # #st.markdown(answer)
+        
+        # # Simulate streaming
+        # def stream_response():
+        #     for word in answer.split(" "):
+        #         yield word + " "
+        #         time.sleep(0.05)
+        # displayed = st.write_stream(stream_response())
 
     # 3. Persist the assistant response
     st.session_state.messages.append({"role": "assistant", "content": answer})
