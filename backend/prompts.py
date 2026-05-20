@@ -26,7 +26,7 @@ Guidelines:
 - Answer in complete sentences.
 
 Citations:
-- Every factual claim drawn from a chunk MUST be followed by an inline citation.
+- Every factual claim drawn from a chunk MUST be followed by YOUR inline citation (NOT the one in the paper!)
 - Cite using the format: (ACTUAL_FILENAME, Section: ACTUAL_SECTION, p. ACTUAL_PAGE) where each field is replaced with the real value from the chunk header.
 - Example: (bleu_evaluation.pdf, Section: 3. Results, p. 5)
 - The filename MUST be copied exactly as it appears at the start of the chunk header (before the —). It is never optional.
