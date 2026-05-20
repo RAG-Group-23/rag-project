@@ -49,7 +49,6 @@ def test_add_document_indexes_and_retrieves():
             json={
                 "raw_document": payload,
                 "filename": "paper.pdf",
-                "collection": "test-session",
                 "session_id" : "testy"
             },
         )
@@ -92,7 +91,6 @@ def test_search_embedding_returns_relevant_chunks():
             json={
                 "raw_document": payload,
                 "filename": "paper.pdf",
-                "collection": "test-session",
                 "session_id": "testy"
             },
         )
@@ -102,7 +100,7 @@ def test_search_embedding_returns_relevant_chunks():
         r = client.post(
             "/search/embedding",
             json={
-                "list_of_document_ids": [doc_id],
+                "document_ids": [doc_id],
                 "query": "What is attention?",
             },
         )

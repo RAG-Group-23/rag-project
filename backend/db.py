@@ -84,7 +84,7 @@ def init_pgvector_db():
         # separately; this table is only for raw-file retrieval.
         cur.execute("""
             CREATE TABLE IF NOT EXISTS pdf_documents (
-                doc_id      TEXT PRIMARY KEY,
+                document_id      TEXT PRIMARY KEY,
                 filename    TEXT NOT NULL,
                 pdf         BYTEA NOT NULL,
                 uploaded_at TIMESTAMPTZ DEFAULT now()
@@ -220,7 +220,7 @@ def index_document(
     # 4. Add fields expected by retrieval / prompt formatting
     for chunk in chunks:
         chunk.metadata["filename"] = filename
-        chunk.metadata["doc_id"] = doc_id
+        #chunk.metadata["doc_id"] = doc_id
 
     # 5. Index
     vectordb.index_documents(chunks)

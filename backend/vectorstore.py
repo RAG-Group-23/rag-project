@@ -106,7 +106,7 @@ class PGVectorDBInstance(VectorDBInterface):
             with conn.cursor() as cur:
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS pdf_documents (
-                        doc_id      TEXT PRIMARY KEY,
+                        document_id      TEXT PRIMARY KEY,
                         filename    TEXT NOT NULL,
                         pdf         BYTEA NOT NULL,
                         uploaded_at TIMESTAMPTZ DEFAULT now()
@@ -137,7 +137,7 @@ class PGVectorDBInstance(VectorDBInterface):
         with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO pdf_documents (doc_id, filename, pdf) VALUES (%s, %s, %s) ON CONFLICT (doc_id) DO NOTHING",
+                    "INSERT INTO pdf_documents (document_id, filename, pdf) VALUES (%s, %s, %s) ON CONFLICT (doc_id) DO NOTHING",
                     (doc_id, filename, psycopg2.Binary(file_bytes))
                 )
         return doc_id
@@ -147,12 +147,13 @@ class PGVectorDBInstance(VectorDBInterface):
         with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT filename, pdf FROM pdf_documents WHERE doc_id = %s",
+                    "SELECT filename, pdf FROM pdf_documents WHERE document_id = %s",
                     (doc_id,)
                 )
                 row = cur.fetchone()
                 if row is None:
-                    raise KeyError(f"No document found for doc_id={doc_id}")
+                    raise KeyError(
+                        f"No document found for document_id={doc_id}")
                 filename, pdf_bytes = row
                 return filename, bytes(pdf_bytes)
 
@@ -202,7 +203,7 @@ class PGVectorDBInstance(VectorDBInterface):
         with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT doc_id, filename FROM pdf_documents ORDER BY uploaded_at ASC"
+                    "SELECT document_id, filename FROM pdf_documents ORDER BY uploaded_at ASC"
                 )
                 return {doc_id: filename for doc_id, filename in cur.fetchall()}
 
@@ -225,7 +226,7 @@ class PGVectorDBInstance(VectorDBInterface):
         vs = self.get_vectorstore()
         search_kwargs = {"k": k}
         if doc_ids:
-            search_kwargs["filter"] = {"doc_id": {"$in": doc_ids}}
+            search_kwargs["filter"] = {"document_id": {"$in": doc_ids}}
         return vs.as_retriever(search_kwargs=search_kwargs)
 
 
@@ -330,5 +331,5 @@ class ChromaDBInstance(VectorDBInterface):
         vs = self.get_vectorstore()
         search_kwargs = {"k": k}
         if doc_ids:
-            search_kwargs["filter"] = {"doc_id": {"$in": doc_ids}}
+            search_kwargs["filter"] = {"document_id": {"$in": doc_ids}}
         return vs.as_retriever(search_kwargs=search_kwargs)

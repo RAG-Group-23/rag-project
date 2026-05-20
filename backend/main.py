@@ -345,7 +345,7 @@ def delete_document(document_id: str) -> bool:
 # ----------------------------------------
 
 class SearchKeywordRequest(BaseModel):
-    list_of_document_ids: list[str]
+    document_ids: list[str]
     query: str
 
 
@@ -361,7 +361,7 @@ def search_keyword(request: SearchKeywordRequest) -> list:
 
 
 class SearchEmbeddingRequest(BaseModel):
-    list_of_document_ids: list[str]
+    document_ids: list[str]
     query: str
 
 
@@ -372,7 +372,7 @@ def search_embedding(
 ) -> list:
     chunks = retrieve_documents(
         query=request.query,
-        doc_ids=request.list_of_document_ids,
+        doc_ids=request.document_ids,
         vectordb=vectordb,
     )
 
