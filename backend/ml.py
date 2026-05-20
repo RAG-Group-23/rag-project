@@ -254,10 +254,14 @@ class Embedder:
 
 
 if __name__ == "__main__":
-    llm = LLM("Qwen/Qwen2.5-0.5B-Instruct")
+    qwen_local = "Qwen/Qwen2.5-0.5B-Instruct"
+    huggy = "HuggingFaceTB/SmolLM2-360M-Instruct"
+    llm = LLM(huggy)
     messages = [
         {"role": "user", "content": "Explain what attention is in a transformer model."}
     ]
+    print("prompt: ")
+    llm.format_prompt(messages, [])
     print("response: ")
     print(llm.generate(messages, []))
 
@@ -272,6 +276,5 @@ if __name__ == "__main__":
     # print(embeddings[0][:10])
     # embeddings = embedding_model.encode(texts, is_query=False)
     # print(embeddings[0][:10])
-
     while True:
         pass
