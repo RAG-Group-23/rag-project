@@ -1,3 +1,4 @@
+import json
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, Gemma3ForConditionalGeneration, AutoProcessor
 from sentence_transformers import SentenceTransformer
@@ -80,10 +81,25 @@ class LLM:
             page_str = "p. ?"
         return f"[{i} document] {filename} — Section: {section} ({page_str})"
 
+    def _format_doc_header_for_humans(self, doc: Document) -> str:
+        meta = doc.metadata or {}
+        filename = meta.get("filename") or "unknown"
+        section = meta.get("section") or "—"
+        page = meta.get("page")
+        ps = meta.get("page_start")
+        pe = meta.get("page_end")
+        if page is not None:
+            page_str = f"p. {page}"
+        elif ps is not None and pe is not None:
+            page_str = f"p. {ps}" if ps == pe else f"pp. {ps}-{pe}"
+        else:
+            page_str = "p. ?"
+        return f"<span style='color: gray;'>[{filename} — Section: {section} ({page_str})]</span>"
+
     def generate(self,
                  messages: list[dict],
                  documents: list[Document],
-                 max_new_tokens: int = 200,
+                 max_new_tokens: int = 500,
                  temperature: float = 0.7,
                  top_p: float = 0.9,
                  ) -> str:
@@ -128,6 +144,7 @@ class LLM:
 
                 inputs = self.format_prompt(messages, documents)
 
+
                 input_len = inputs["input_ids"].shape[-1]
 
                 with torch.inference_mode():
@@ -139,7 +156,8 @@ class LLM:
                     generation = generation[0][input_len:]
                 decoded = self.processor.decode(
                     generation, skip_special_tokens=True)
-                return decoded
+                print("DEBUG: Raw model output\n", decoded)
+                return self.replace_model_references(decoded, documents)
             # ------------------------------------------------------------
             # ------------------------------------------------------------
             # ------------------------------------------------------------
@@ -195,7 +213,7 @@ class LLM:
 
                 if len(documents) == 0:
                     conversation[-1]["content"][0]["text"] += f"No relevant documents were found.\n"
-
+                print("DEBUG: Conversation with document headers:\n", json.dumps(conversation, indent=2))
                 return self.processor.apply_chat_template(
                     conversation,
                     add_generation_prompt=True,
@@ -209,6 +227,18 @@ class LLM:
             # ------------------------------------------------------------
             case _:
                 raise ValueError(f"Unsupported model name: {self.model_name}")
+
+
+    def replace_model_references(self, text: str, chunks:list[Document]) -> str:
+        """
+        Replace the model generated "<{n}>" references in the text with the corresponding document headers.
+
+        """
+        for i, doc in enumerate(chunks):
+            header = self._format_doc_header_for_humans(doc)
+            text = text.replace(f"<{{{i}}}>", header)
+        return text
+
 
 
 class Embedder:

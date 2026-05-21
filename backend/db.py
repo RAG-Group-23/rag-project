@@ -230,7 +230,7 @@ def retrieve_documents(
     query: str,
     *,
     doc_ids: list[str] | None = None,
-    k: int = 4,
+    k: int = 10,
     vectordb: VectorDBInterface | None = None,
 ) -> list[Document]:
     """
@@ -240,7 +240,7 @@ def retrieve_documents(
     ----------
     query   : the search string
     doc_ids : optional list of doc_ids to scope the search to specific documents
-    k       : number of chunks to return (default 4)
+    k       : number of chunks to return (default 10)
     vectordb: injectable vectordb instance; falls back to the cached default
 
     Returns
