@@ -7,6 +7,8 @@ from langchain_community.vectorstores import VectorStore
 import hashlib
 from langchain_postgres import PGEngine, PGVectorStore
 from langchain_chroma import Chroma
+from langchain_core.embeddings import Embeddings
+
 
 def document_hash(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -65,7 +67,7 @@ class VectorDBInterface(ABC):
 
 
 class PGVectorDBInstance(VectorDBInterface):
-    def __init__(self, embedding_func, collection_name, vector_size: int = 384):
+    def __init__(self, embedding_func: Embeddings, collection_name: str, vector_size: int):
         self.connection_string = None
         self._raw_conn_string = None
         self.embedding = embedding_func
@@ -231,7 +233,7 @@ class PGVectorDBInstance(VectorDBInterface):
 
 
 class ChromaDBInstance(VectorDBInterface):
-    def __init__(self, embedding_func, persist_directory: str = "./chroma_db"):
+    def __init__(self, embedding_func: Embeddings, persist_directory: str = "./chroma_db"):
         print("Init ChromaDB")
         self.embedding = embedding_func
         self.persist_directory = persist_directory

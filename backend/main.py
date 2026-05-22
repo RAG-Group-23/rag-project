@@ -15,7 +15,6 @@ from db import (
     index_document,
     retrieve_documents,
     get_vectordb_dep,
-    get_text_splitter_dep,
     VectorDBInterface,
     store_message,
     fetch_conversation,
@@ -79,12 +78,13 @@ if os.getenv("LOAD_MODELS", "false").lower() == "true":
     llm_model = os.getenv("LLM_MODEL", "google/gemma-3-4b-it")
     llm = LLM(llm_model)
     
-    embedder_model = os.getenv("EMBEDDER_MODEL", "Qwen/Qwen3-Embedding-4B")
-    embedder = Embedder(embedder_model)
+    # NOTE: As for now, embedder is not initialized here
+    #embedder_model = os.getenv("EMBEDDER_MODEL", "Qwen/Qwen3-Embedding-4B")
+    #embedder = Embedder(embedder_model)
 else:
     print("Skipping models loading")
     llm = MockLLM()
-    embedder = MockEmbedder()
+    #embedder = MockEmbedder()
 
 # ----------------------------------------
 # Health / root
@@ -277,7 +277,6 @@ class AddDocumentRequest(BaseModel):
 def add_document(
     request: AddDocumentRequest,
     vectordb=Depends(get_vectordb_dep),
-    text_splitter=Depends(get_text_splitter_dep),
 ) -> str:
     """
     Decode, store, and index a base64-encoded PDF.

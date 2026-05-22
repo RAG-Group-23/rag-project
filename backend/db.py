@@ -38,6 +38,7 @@ from psycopg2.extras import RealDictCursor
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.embeddings import Embeddings
 
 from vectorstore import VectorDBInterface, PGVectorDBInstance, ChromaDBInstance
 from text_extractor import extract_sections
@@ -120,12 +121,15 @@ def init_pgvector_db():
 # Pluggable component factories
 # ----------------------------------------
 
-def get_default_embedding() -> Any:
+def get_embedding_and_size() -> tuple[Embeddings, int]:
     model_name = os.getenv(
         "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
     )
-    return HuggingFaceEmbeddings(model_name=model_name)
-
+    match model_name:
+        case "sentence-transformers/all-MiniLM-L6-v2":
+            return HuggingFaceEmbeddings(model_name=model_name), 384
+        case "Qwen/Qwen3-Embedding-4B":
+            return HuggingFaceEmbeddings(model_name=model_name), 2560
 
 # TODO: Replace with a better chunking strategy for research papers
 def get_default_text_splitter() -> Any:
@@ -135,9 +139,9 @@ def get_default_text_splitter() -> Any:
     )
 
 
-def get_default_vectordb(embedding: Optional[Any] = None) -> VectorDBInterface:
+def get_vectordb(embedding: Optional[Embeddings] = None, embedding_size: Optional[int] = None) -> VectorDBInterface:
     if embedding is None:
-        embedding = get_default_embedding()
+        embedding, embedding_size = get_embedding_and_size()
 
     backend = os.getenv("VECTOR_DB", "pgvector").lower()
 
@@ -146,6 +150,7 @@ def get_default_vectordb(embedding: Optional[Any] = None) -> VectorDBInterface:
         db = PGVectorDBInstance(
             embedding_func=embedding,
             collection_name=os.getenv("PGVECTOR_COLLECTION", "chunks"),
+            vector_size=embedding_size
         )
         db.set_connection_string(
             user=DB_USER,
@@ -174,7 +179,7 @@ _default_vectordb: Optional[VectorDBInterface] = None
 def _cached_default_vectordb() -> VectorDBInterface:
     global _default_vectordb
     if _default_vectordb is None:
-        _default_vectordb = get_default_vectordb()
+        _default_vectordb = get_vectordb()
     return _default_vectordb
 
 
@@ -184,11 +189,6 @@ def _cached_default_vectordb() -> VectorDBInterface:
 
 def get_vectordb_dep() -> VectorDBInterface:
     return _cached_default_vectordb()
-
-
-def get_text_splitter_dep() -> Any:
-    return get_default_text_splitter()
-
 
 # ----------------------------------------
 # Core indexing logic
@@ -263,7 +263,6 @@ def get_document_ids(vectordb: VectorDBInterface | None = None) -> list[str]:
 # ----------------------------------------
 # Conversation history
 # ----------------------------------------
-
 
 def store_message(
     session_id: str,
