@@ -26,6 +26,8 @@ def handle_answer(st, answer, stream_response=True):
             )
             time.sleep(0.05)
     else:
+
+        st.rerun()
         st.markdown(
             answer,
             unsafe_allow_html=True,
@@ -175,18 +177,18 @@ with st.sidebar:
     st.caption("Group 23")
     st.divider()
 
-    st.markdown("**Session**", unsafe_allow_html=True)
-    st.code(short_id, language="text")
+    # st.markdown("**Session**", unsafe_allow_html=True)
+    # st.code(short_id, language="text")
 
-    if st.button("🆕 New session", use_container_width=True):
-        new_id = str(uuid4())
-        st.session_state.session_id = new_id
-        st.session_state.messages = []
-        st.session_state.uploader_key += 1
-        save_current_session_meta()
-        st.rerun()
+    # # if st.button("🆕 New session", use_container_width=True):
+    # #     new_id = str(uuid4())
+    # #     st.session_state.session_id = new_id
+    # #     st.session_state.messages = []
+    # #     st.session_state.uploader_key += 1
+    # #     save_current_session_meta()
+    # #     st.rerun()
 
-    st.divider()
+    # st.divider()
 
     st.markdown("**Sessions**", unsafe_allow_html=True)
 
@@ -207,10 +209,25 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
 
+        if st.button("🆕 New session", use_container_width=True):
+            new_id = str(uuid4())
+            st.session_state.session_id = new_id
+            st.session_state.messages = []
+            st.session_state.uploader_key += 1
+            save_current_session_meta()
+            st.rerun()
         with st.container(height=180, key="session_list_container"):
             for sid, meta in reversed(list(all_sessions.items())):
+                # print(f"Session {sid}: {meta}")
+                conversation = fetch_session_conversation(sid)
+                if len(conversation) == 0:
+                    first_user_msg = "No messages yet."
+                elif conversation[0]["role"] == "user":
+                    first_user_msg = conversation[0]["content"]
+                else:
+                    first_user_msg = conversation[1]["content"] if len(conversation) > 1 else "No messages yet."
                 is_active = sid == session_id
-                label = f"{'🟢 ' if is_active else ''}{meta['label']}"
+                label = f"{'🟢 ' if is_active else ''}{first_user_msg}"
                 help_text = f"Created {meta['created_at']}"
                 btn_type = "primary" if is_active else "secondary"
 
