@@ -73,16 +73,16 @@ class MockEmbedder:
 # Load models 
 # ----------------------------------------
 if os.getenv("LOAD_MODELS", "false").lower() == "true":
-    print("Loading models")
     from ml import LLM, Embedder
     llm_model = os.getenv("LLM_MODEL", "google/gemma-3-4b-it")
+    print("Loading model:", llm_model)
     llm = LLM(llm_model)
     
     # NOTE: As for now, embedder is not initialized here
     #embedder_model = os.getenv("EMBEDDER_MODEL", "Qwen/Qwen3-Embedding-4B")
     #embedder = Embedder(embedder_model)
 else:
-    print("Skipping models loading")
+    print("Using mock model")
     llm = MockLLM()
     #embedder = MockEmbedder()
 

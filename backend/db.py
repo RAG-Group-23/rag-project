@@ -125,6 +125,7 @@ def get_embedding_and_size() -> tuple[Embeddings, int]:
     model_name = os.getenv(
         "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
     )
+    print("Loading embedding model:", model_name)
     match model_name:
         case "sentence-transformers/all-MiniLM-L6-v2":
             return HuggingFaceEmbeddings(model_name=model_name), 384
