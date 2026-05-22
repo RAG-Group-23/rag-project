@@ -130,6 +130,8 @@ def get_embedding_and_size() -> tuple[Embeddings, int]:
             return HuggingFaceEmbeddings(model_name=model_name), 384
         case "Qwen/Qwen3-Embedding-4B":
             return HuggingFaceEmbeddings(model_name=model_name), 2560
+        case _:
+            raise ValueError(f"Unsupported model name: {model_name}")
 
 # TODO: Replace with a better chunking strategy for research papers
 def get_default_text_splitter() -> Any:
