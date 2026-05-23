@@ -231,6 +231,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+    <style>
+    [data-testid="stSidebar"] {
+        min-width: 350px;
+        max-width: 350px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # st.markdown("""
 #     <style>
 #     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
