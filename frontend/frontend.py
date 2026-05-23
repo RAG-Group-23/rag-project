@@ -412,21 +412,31 @@ if uploaded_docs and not selected_docs:
         icon="📄",
     )
 
-query = st.chat_input("Ask a question about your documents...")
+
+selected_docs = st.session_state.get("selected_docs", [])
+uploaded_docs = st.session_state.get("all_docs", {})
+is_chat_disabled = len(selected_docs) == 0
+
+query = st.chat_input(
+    "Ask a question about your documents...", disabled=is_chat_disabled)
 
 if query:
-    # ensure the session appears in the sidebar on first message
     save_current_session_meta()
 
     st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(query, unsafe_allow_html=True)
 
-    selected_docs = st.session_state.get("selected_docs", [])
+    strictly_selected_docs = [
+        doc_id for doc_id in st.session_state.get("all_docs", {})
+        if st.session_state.get(f"doc_{doc_id}") == True
+    ]
 
     with st.chat_message("assistant", avatar=BOT_AVATAR):
         with st.spinner("Thinking..."):
-            answer = send_query(query, session_id, selected_docs)
+            # Send the guaranteed verified list instead of the leaky state tracker
+            answer = send_query(query, session_id, strictly_selected_docs)
         handle_answer(st, answer, stream_response=STREAM_RESPONSE)
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
+

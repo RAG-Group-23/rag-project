@@ -209,6 +209,10 @@ def update_conversation_of_session(
     _append_message(session_id, request, vectordb)
     conversation = [{"role": message.role, "content": message.message}
                     for message in get_conversation_for_session(session_id)]
+    
+    if len(request.doc_ids) == 0:
+        return "No documents were selected"
+    
     chunks = retrieve_documents(
         query=request.message,
         doc_ids=request.doc_ids,
