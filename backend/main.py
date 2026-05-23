@@ -20,6 +20,8 @@ from db import (
     fetch_conversation,
     get_document_ids,
     get_session_ids,
+    delete_session_db,
+    delete_document_db,
 )
 
 @asynccontextmanager
@@ -127,13 +129,16 @@ def create_session() -> str:
 
 
 @app.delete("/sessions/{session_id}")
-def delete_session(session_id: str) -> bool:
-    """
-    Delete an existing session.
-    Returns:
-        bool: True if deleted successfully.
-    """
-    raise NotImplementedError()
+def delete_session(session_id: str, vectordb=Depends(get_vectordb_dep)):
+    try:
+        delete_session_db(session_id=session_id, vectordb=vectordb)
+        return True
+    except KeyError:
+        raise HTTPException(
+            status_code=404, detail=f"Session {session_id!r} not found")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error deleting session: {e}")
 
 
 @app.get("/sessions/{session_id}")
@@ -287,8 +292,9 @@ def add_document(
     try:
         file_bytes = base64.b64decode(request.raw_document)
     except (ValueError, base64.binascii.Error) as e:
+        print("Error", e)
         raise HTTPException(
-            status_code=400, detail=f"Invalid base64 payload: {e}")
+            status_code=400, detail=f"Invalid base64 payload")
 
     try:
         return index_document(
@@ -299,7 +305,7 @@ def add_document(
     except Exception as e:
         print("Error", e)
         raise HTTPException(
-            status_code=500, detail=f"Error indexing document: {e}")
+            status_code=500, detail=f"Error indexing document")
 
 
 @app.get("/documents/{document_id}")
@@ -325,19 +331,20 @@ def get_documents(vectordb=Depends(get_vectordb_dep)) -> dict[str, str]:
     except Exception as e:
         print("Error", e)
         raise HTTPException(
-            status_code=500, detail=f"Error retrieving documents: {e}")
+            status_code=500, detail=f"Error retrieving documents")
 
 
 @app.delete("/documents/{document_id}")
-def delete_document(document_id: str) -> bool:
-    """
-    Delete a document by ID.
-
-    Returns:
-        bool: True if deleted successfully.
-    """
-    raise NotImplementedError()
-
+def delete_document(document_id: str, vectordb=Depends(get_vectordb_dep)):
+    try:
+        delete_document_db(document_id, vectordb=vectordb)
+        return True
+    except KeyError:
+        raise HTTPException(
+            status_code=404, detail=f"Document {document_id!r} not found")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error deleting document: {e}")
 
 # ----------------------------------------
 # Search

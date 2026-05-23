@@ -263,6 +263,17 @@ def get_document_ids(vectordb: VectorDBInterface | None = None) -> list[str]:
         vectordb = _cached_default_vectordb()
     return vectordb.get_document_ids()
 
+
+def delete_session_db(session_id: str, vectordb: VectorDBInterface | None = None):
+    if vectordb is None:
+        vectordb = _cached_default_vectordb()
+    return vectordb.delete_session(session_id=session_id)
+
+def delete_document_db(document_id: str, vectordb: VectorDBInterface | None = None):
+    if vectordb is None:
+        vectordb = _cached_default_vectordb()
+    return vectordb.delete_document(doc_id=document_id)
+
 # ----------------------------------------
 # Conversation history
 # ----------------------------------------
