@@ -277,6 +277,10 @@ def index_document_from_url_v2(
 
     file_bytes = response.content
 
+    if not file_bytes.startswith(b"%PDF"):
+        raise ValueError(
+            "File does not appear to be a valid PDF (missing %PDF header)")
+
     # 1. Extract text & image references from the PDF
     sections = extract_sections(BytesIO(file_bytes))
     

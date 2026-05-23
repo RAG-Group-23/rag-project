@@ -45,7 +45,8 @@ CORS is set to `allow_origins=["*"]` because the frontend proxy makes the
 requests server-side, not from a browser origin.
 
 
-## Testing Locally
+## Chroma DB
+Mainly used for fast local testing.
 ```python
 VECTOR_DB=chroma LOAD_MODELS=true LLM_MODEL=HuggingFaceTB/SmolLM2-360M-Instruct EMBEDDER_MODEL=sentence-transformers/all-MiniLM-L6-v2 python3 main.py
 ```
@@ -72,14 +73,35 @@ cur = conn.cursor()
 ```
 * `cur` is an uncommited transaction; mainly used to check data.
 
+**Tables**
+```py
+cur.execute("""
+    SELECT tablename
+    FROM pg_tables
+    WHERE schemaname = 'public';
+""")
+
+tables = cur.fetchall()
+print(tables)
+```
+```
+[('pdf_documents',), ('conversations',), ('chunks',)]
+```
+* `pdf_documents` stores the binary data of PDFs
+* `conversation` stores the user/assistent interactions
+* `chunks` stores the embeddings
+
+
 **Deletion**
 ```py
 cur.execute("""
-    DROP TABLE IF EXISTS langchain_pg_embedding CASCADE;
-    DROP TABLE IF EXISTS langchain_pg_collection CASCADE;
+    DROP TABLE IF EXISTS pdf_documents CASCADE;
+    DROP TABLE IF EXISTS conversation CASCADE;
+    DROP TABLE IF EXISTS chunks CASCADE;
 """)
 conn.commit()
 ```
+
 
 **Viewing PDF Files**
 ```py
@@ -91,41 +113,64 @@ for d in data:
 ```
 ('62770a86-db91-4e36-b17a-4826f4dddc4d', 'MT_with_ChatGPT.pdf', <memory at 0x7f3abbbd5d80>, datetime.datetime(2026, 5, 6, 9, 9, 10, 608126, tzinfo=datetime.timezone.utc))
 ```
-
 * LangChain's PGVector handling does not support PDF storage by default
 * We store IDs of the PDFDocument in the metadata of the embedding
 * We store the PDF as byte arrays in a table
 * So both PDFs & Embeddings are stored differently.
 
+
 **Embeddings**
 ```py
-cur.execute("SELECT * FROM langchain_pg_collection;")
-print(cur.fetchall())
+cur.execute("""
+    SELECT langchain_id, langchain_metadata 
+    FROM chunks LIMIT 1""")
+items = cur.fetchall()
+for item in items:
+    print(item)
 ```
 ```
-[('my_documents', None, 'e954ea3f-a0cc-466a-a9f6-4d737aecd77a')]
+('b704aa1a-6809-44bd-8496-a5fe89b7138f', {'document_id': '896bbe50ff4b0c0c319ac2f635117bb892c6fee9145b26d8335b7e68a8bd2ded', 'section': '**A Fine-Grained Analysis of BERTScore**', 'section_level': 2, 'section_index': 0, 'page_start': 1, 'page_end': 1, 'num_images': 0, 'local_chunk_index': 0, 'page': 1, 'chunk_id': '896bbe50ff4b0c0c319ac2f635117bb892c6fee9145b26d8335b7e68a8bd2ded_chunk_0', 'chunk_index': 0, 'filename': 'BERTScore_Experiments.pdf'})
 ```
 
+## Local Testing of PGVector
+Create `docker-compose.yml` with:
+```
+services:
+  pgvector:
+    image: pgvector/pgvector:pg17
+    container_name: pgvector_dev
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: ragdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
 
-```py
-cur.execute("SELECT uuid, cmetadata FROM langchain_pg_embedding;")
-data = cur.fetchall()
-print("Size:", len(data))
-for i,d in enumerate(data):
-    if i<=5:
-        print(d)
+volumes:
+  pgvector_data:
 ```
+
+Create a `.env` with:
 ```
-[('pdf_documents',), ('langchain_pg_collection',), ('langchain_pg_embedding',)]
-[('my_documents', None, 'e954ea3f-a0cc-466a-a9f6-4d737aecd77a')]
-Size: 59
-('a2377655-4e22-4098-b120-29ddbcb931c1', {'num_images': 5, 'filename': 'MT_with_ChatGPT.pdf', 'doc_id': '62770a86-db91-4e36-b17a-4826f4dddc4d', 'page_index': 0})
-('be60079f-913c-41c6-b9e0-bae2258a0690', {'num_images': 5, 'filename': 'MT_with_ChatGPT.pdf', 'doc_id': '62770a86-db91-4e36-b17a-4826f4dddc4d', 'page_index': 0})
-('01638e17-8423-4bf1-a265-4f09b88ec7af', {'num_images': 5, 'filename': 'MT_with_ChatGPT.pdf', 'doc_id': '62770a86-db91-4e36-b17a-4826f4dddc4d', 'page_index': 0})
-('2c83fefe-5a01-46e6-b4d7-fb2247ca3014', {'num_images': 5, 'filename': 'MT_with_ChatGPT.pdf', 'doc_id': '62770a86-db91-4e36-b17a-4826f4dddc4d', 'page_index': 0})
-('19e5d5c4-d34b-4944-aa9b-f6c77fee0630', {'num_images': 5, 'filename': 'MT_with_ChatGPT.pdf', 'doc_id': '62770a86-db91-4e36-b17a-4826f4dddc4d', 'page_index': 0})
-('b7f0e67a-4f8f-4571-8f4b-2be7e4f97bf9', {'num_images': 4, 'filename': 'MT_with_ChatGPT.pdf', 'doc_id': '62770a86-db91-4e36-b17a-4826f4dddc4d', 'page_index': 1})
+VECTOR_DB=pgvector
+LOAD_MODELS=false
+LLM_MODEL=HuggingFaceTB/SmolLM2-360M-Instruct
+EMBEDDER_MODEL=sentence-transformers/all-MiniLM-L6-v2
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ragdb
+DB_USER=dev
+DB_PASSWORD=dev
 ```
+
+cd into the `rag-project/backend` and run:
+```
+env $(cat .env | xargs) python main.py
+```
+Allows you to check if PGVector related functionality works without using Nuvolus.
+
 
 # Troubleshooting
 ## PGVector DB Start Up Issues
