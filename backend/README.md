@@ -48,6 +48,8 @@ requests server-side, not from a browser origin.
 ## Testing Locally
 ```python
 VECTOR_DB=chroma LOAD_MODELS=true LLM_MODEL=HuggingFaceTB/SmolLM2-360M-Instruct EMBEDDER_MODEL=sentence-transformers/all-MiniLM-L6-v2 python3 main.py
+or 
+VECTOR_DB=chroma LOAD_MODELS=true python3 main.py
 ```
 * Will use ChromaDB instead of PGVector
 * If LOAD_MODELS=true, will use the specified models. The ones specified here are much weaker than the production one and can be run from CPU
