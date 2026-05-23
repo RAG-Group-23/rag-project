@@ -1,8 +1,10 @@
+import json
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, Gemma3ForConditionalGeneration, AutoProcessor
 from sentence_transformers import SentenceTransformer
 from prompts import MAIN_ASSISTANT_PROMPT
 from transformers import BitsAndBytesConfig
+from langchain_core.documents import Document
 import os
 
 
@@ -11,6 +13,14 @@ class LLM:
         self.model_name = model_name
         self.root = os.getenv("MODEL_ROOT", "/files")
         match model_name:
+            case "Qwen/Qwen2.5-0.5B-Instruct":
+                self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+                if load_model:
+                    self.model = AutoModelForCausalLM.from_pretrained(
+                        model_name,
+                        torch_dtype=torch.float32,  # CPU-safe
+                        device_map="cpu"
+                    )
             case "ministral/Ministral-3b-instruct":
                 model_name_or_path = f"{self.root}/Ministral-3b-instruct" if os.path.exists(
                     f"{self.root}/Ministral-3b-instruct") else "ministral/Ministral-3b-instruct"
@@ -37,13 +47,59 @@ class LLM:
                 ).eval()
                 self.processor = AutoProcessor.from_pretrained(
                     model_name_or_path)
+
+
+            case "HuggingFaceTB/SmolLM2-360M-Instruct":
+                self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+                if load_model:
+                    self.model = AutoModelForCausalLM.from_pretrained(
+                        model_name,
+                        torch_dtype=torch.float32,
+                        device_map="cpu"
+                    )
             case _:
                 raise ValueError(f"Unsupported model name: {self.model_name}")
 
+    @staticmethod
+    def _format_doc_header(i: int, doc: Document) -> str:
+        """Build a citation header from a retrieved chunk's metadata.
+
+        Uses ``page`` when present (set by the chunker for every chunk).
+        Falls back to a ``page_start``/``page_end`` range, then to "?".
+        """
+        meta = doc.metadata or {}
+        filename = meta.get("filename") or "unknown"
+        section = meta.get("section") or "—"
+        page = meta.get("page")
+        ps = meta.get("page_start")
+        pe = meta.get("page_end")
+        if page is not None:
+            page_str = f"p. {page}"
+        elif ps is not None and pe is not None:
+            page_str = f"p. {ps}" if ps == pe else f"pp. {ps}-{pe}"
+        else:
+            page_str = "p. ?"
+        return f"[{i} document] {filename} — Section: {section} ({page_str})"
+
+    def _format_doc_header_for_humans(self, doc: Document) -> str:
+        meta = doc.metadata or {}
+        filename = meta.get("filename") or "unknown"
+        section = meta.get("section") or "—"
+        page = meta.get("page")
+        ps = meta.get("page_start")
+        pe = meta.get("page_end")
+        if page is not None:
+            page_str = f"p. {page}"
+        elif ps is not None and pe is not None:
+            page_str = f"p. {ps}" if ps == pe else f"pp. {ps}-{pe}"
+        else:
+            page_str = "p. ?"
+        return f"<span style='color: gray;'>[{filename} — Section: {section} ({page_str})]</span>"
+
     def generate(self,
                  messages: list[dict],
-                 documents: list[str],
-                 max_new_tokens: int = 200,
+                 documents: list[Document],
+                 max_new_tokens: int = 500,
                  temperature: float = 0.7,
                  top_p: float = 0.9,
                  ) -> str:
@@ -52,7 +108,7 @@ class LLM:
             # ------------------------------------------------------------
             # -----ministral/Ministral-3b-instruct------------------------
             # ------------------------------------------------------------
-            case "ministral/Ministral-3b-instruct":
+            case "ministral/Ministral-3b-instruct" | "HuggingFaceTB/SmolLM2-360M-Instruct" | "Qwen/Qwen2.5-0.5B-Instruct":
                 # print(f"Conversation: {messages}")
 
                 prompt = self.tokenizer.apply_chat_template(
@@ -88,6 +144,7 @@ class LLM:
 
                 inputs = self.format_prompt(messages, documents)
 
+
                 input_len = inputs["input_ids"].shape[-1]
 
                 with torch.inference_mode():
@@ -99,27 +156,30 @@ class LLM:
                     generation = generation[0][input_len:]
                 decoded = self.processor.decode(
                     generation, skip_special_tokens=True)
-                return decoded
+                print("DEBUG: Raw model output\n", decoded)
+                return self.replace_model_references(decoded, documents)
             # ------------------------------------------------------------
             # ------------------------------------------------------------
             # ------------------------------------------------------------
             case _:
                 raise ValueError(f"Unsupported model name: {self.model_name}")
 
-    def format_prompt(self, conversation: list[dict], documents: list[str]):
+    def format_prompt(self, conversation: list[dict], documents: list[Document]):
         match self.model_name:
 
+
             # ------------------------------------------------------------
-            # ------ministral/Ministral-3b-instruct-----------------------
+            # -----Models suitable for local testing
             # ------------------------------------------------------------
-            case  "ministral/Ministral-3b-instruct":
+            case "ministral/Ministral-3b-instruct" | "HuggingFaceTB/SmolLM2-360M-Instruct" | "Qwen/Qwen2.5-0.5B-Instruct":
                 conversation = [
                     {"role": "system", "content": MAIN_ASSISTANT_PROMPT}] + conversation
 
                 conversation[-1]["content"] += "\n\nRetrieved documents:"
 
                 for i, doc in enumerate(documents):
-                    conversation[-1]["content"] += f"\n[{i} document]\n {doc}\n"
+                    header = self._format_doc_header(i, doc)
+                    conversation[-1]["content"] += f"\n{header}\n{doc.page_content}\n"
 
                 if len(documents) == 0:
                     conversation[-1]["content"] += f"No relevant documents were found.\n"
@@ -129,6 +189,7 @@ class LLM:
                     tokenize=True,
                     add_generation_prompt=True,
                 )
+                print("DEBUG: Prompt\n", final_prompt)
                 return final_prompt
 
             # ------------------------------------------------------------
@@ -147,11 +208,12 @@ class LLM:
                 conversation[-1]["content"][0]["text"] += "\n\nRetrieved documents:"
 
                 for i, doc in enumerate(documents):
-                    conversation[-1]["content"][0]["text"] += f"\n[{i} document]\n {doc}\n"
+                    header = self._format_doc_header(i, doc)
+                    conversation[-1]["content"][0]["text"] += f"\n{header}\n{doc.page_content}\n"
 
                 if len(documents) == 0:
                     conversation[-1]["content"][0]["text"] += f"No relevant documents were found.\n"
-
+                print("DEBUG: Conversation with document headers:\n", json.dumps(conversation, indent=2))
                 return self.processor.apply_chat_template(
                     conversation,
                     add_generation_prompt=True,
@@ -167,18 +229,35 @@ class LLM:
                 raise ValueError(f"Unsupported model name: {self.model_name}")
 
 
+    def replace_model_references(self, text: str, chunks:list[Document]) -> str:
+        """
+        Replace the model generated "<{n}>" references in the text with the corresponding document headers.
+
+        """
+        for i, doc in enumerate(chunks):
+            header = self._format_doc_header_for_humans(doc)
+            text = text.replace(f"<{{{i}}}>", header)
+        return text
+
+
+
 class Embedder:
     def __init__(self, model_name: str):
         self.model_name = model_name
-
         match self.model_name:
-
             # this model was chosen mostly at random.
             # It has a hight score on the MTEB benchmark, and is relatively small, which should make it faster to run.
             case "Qwen/Qwen3-Embedding-4B":
                 self.model = SentenceTransformer(
                     "Qwen/Qwen3-Embedding-4B",
                     device="cuda" if torch.cuda.is_available() else "cpu"
+                )
+                
+
+            case "sentence-transformers/all-MiniLM-L6-v2":
+                self.model = SentenceTransformer(
+                    "sentence-transformers/all-MiniLM-L6-v2",
+                    device="cpu"
                 )
 
             case _:
@@ -190,37 +269,42 @@ class Embedder:
             is_query = False
 
         match self.model_name:
-
             case "Qwen/Qwen3-Embedding-4B":
                 return self.model.encode(
                     input,
                     prompt_name="query" if is_query else "document",
                     device="cuda" if torch.cuda.is_available() else "cpu"
                 ).tolist()
+                
+            case "sentence-transformers/all-MiniLM-L6-v2":
+                return self.model.encode(input).tolist()
 
             case _:
                 raise ValueError(f"Unsupported model name: {self.model_name}")
 
 
 if __name__ == "__main__":
-    llm = LLM("ministral/Ministral-3b-instruct")
+    qwen_local = "Qwen/Qwen2.5-0.5B-Instruct"
+    huggy = "HuggingFaceTB/SmolLM2-360M-Instruct"
+    llm = LLM(huggy)
     messages = [
         {"role": "user", "content": "Explain what attention is in a transformer model."}
     ]
+    print("prompt: ")
+    llm.format_prompt(messages, [])
     print("response: ")
-    print(llm.generate(messages))
+    print(llm.generate(messages, []))
 
-    embedding_model = Embedder("Qwen/Qwen3-Embedding-4B")
+    # embedding_model = Embedder("sentence-transformers/all-MiniLM-L6-v2")
 
-    texts = [
-        "Some text",
-        "Some other text"
-    ]
+    # texts = [
+    #     "Attention is cool",
+    #     "Some other text"
+    # ]
 
-    embeddings = embedding_model.encode(texts, is_query=True)
-    print(embeddings[0][:10])
-    embeddings = embedding_model.encode(texts, is_query=False)
-    print(embeddings[0][:10])
-
+    # embeddings = embedding_model.encode(texts, is_query=True)
+    # print(embeddings[0][:10])
+    # embeddings = embedding_model.encode(texts, is_query=False)
+    # print(embeddings[0][:10])
     while True:
         pass

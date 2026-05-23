@@ -10,6 +10,28 @@ USER_AVATAR = None
 BOT_AVATAR = None
 HOST_IP = os.getenv('HOST_IP', None)
 API_BASE_URL = f"http://{HOST_IP}:8500" if HOST_IP is not None else "http://127.0.0.1:8500"
+STREAM_RESPONSE = os.getenv("STREAM_RESPONSE", "false").lower() == "true"
+
+
+def handle_answer(st, answer, stream_response=True):
+    if stream_response:
+        placeholder = st.empty()
+        rendered_text = ""
+
+        for word in answer.split():
+            rendered_text += word + " "
+            placeholder.markdown(
+                rendered_text,
+                unsafe_allow_html=True,
+            )
+            time.sleep(0.05)
+    else:
+
+        st.rerun()
+        st.markdown(
+            answer,
+            unsafe_allow_html=True,
+        )
 
 
 def prepare_document_payload(file_bytes: bytes, filename: str, session_id: str) -> dict:
@@ -17,7 +39,7 @@ def prepare_document_payload(file_bytes: bytes, filename: str, session_id: str) 
     return {
         "raw_document": encoded,
         "filename": filename,
-        "session_id": session_id
+        "session_id": session_id,
     }
 
 
@@ -43,7 +65,9 @@ def fetch_session_conversation(session_id: str) -> list:
             ]
         else:
             st.toast(
-                f"Could not load session history ({response.status_code})", icon="⚠️")
+                f"Could not load session history ({response.status_code})",
+                icon="⚠️",
+            )
             return []
     except requests.exceptions.RequestException as e:
         st.toast(f"Could not reach backend: {e}", icon="⚠️")
@@ -58,7 +82,9 @@ def fetch_all_documents() -> dict:
             return response.json()
         else:
             st.toast(
-                f"Could not load documents ({response.status_code})", icon="⚠️")
+                f"Could not load documents ({response.status_code})",
+                icon="⚠️",
+            )
             return {}
     except requests.exceptions.RequestException as e:
         st.toast(f"Could not reach backend: {e}", icon="⚠️")
@@ -74,6 +100,7 @@ def fetch_all_sessions() -> list[str]:
     except requests.exceptions.RequestException:
         return []
 
+
 def send_query(query: str, session_id: str, selected_docs: list) -> str:
     """Send a user query and return the assistant's response text."""
     payload = prepare_query_payload(query, session_id, selected_docs)
@@ -83,8 +110,7 @@ def send_query(query: str, session_id: str, selected_docs: list) -> str:
             json=payload,
         )
         if response.status_code == 200:
-            return response.json()  # backend now returns a plain string
-            #return response.json().get("response", "_(No response)_")
+            return response.json()
         else:
             return f"_(Backend error {response.status_code})_"
     except requests.exceptions.RequestException as e:
@@ -95,7 +121,7 @@ def switch_session(session_id: str):
     """Switch the active session and load its conversation from the backend."""
     st.session_state.session_id = session_id
     st.session_state.messages = fetch_session_conversation(session_id)
-    # Restore uploaded docs for the session if tracked
+
     session_meta = st.session_state.all_sessions.get(session_id, {})
     st.session_state.uploaded_docs = session_meta.get("uploaded_docs", {})
     st.session_state.uploader_key += 1
@@ -107,8 +133,9 @@ def save_current_session_meta():
     if sid not in st.session_state.all_sessions:
         st.session_state.all_sessions[sid] = {
             "label": f"Session {sid[:6]}",
-            "created_at": time.strftime("%H:%M %d/%m/%y")
+            "created_at": time.strftime("%H:%M %d/%m/%y"),
         }
+
 
 # UI Config
 st.set_page_config(
@@ -120,12 +147,16 @@ st.set_page_config(
 # ── Session state bootstrap ────────────────────────────────────────────────
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid4())
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
 if "all_docs" not in st.session_state:
     st.session_state.all_docs = fetch_all_documents()
+
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
+
 if "all_sessions" not in st.session_state:
     st.session_state.all_sessions = {}
     for sid in fetch_all_sessions():
@@ -135,7 +166,6 @@ if "all_sessions" not in st.session_state:
             "uploaded_docs": {},
         }
 
-# Make sure the current session is always registered
 save_current_session_meta()
 
 session_id = st.session_state.session_id
@@ -143,26 +173,24 @@ short_id = session_id[:6]
 
 # ── Sidebar ────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### 📚 Research Paper RAG")
+    st.markdown("### 📚 Research Paper RAG", unsafe_allow_html=True)
     st.caption("Group 23")
     st.divider()
 
-    # ── Active session ─────────────────────────────────────────────────────
-    st.markdown("**Session**")
-    st.code(short_id, language="text")
+    # st.markdown("**Session**", unsafe_allow_html=True)
+    # st.code(short_id, language="text")
 
-    if st.button("🆕 New session", use_container_width=True):
-        new_id = str(uuid4())
-        st.session_state.session_id = new_id
-        st.session_state.messages = []
-        st.session_state.uploader_key += 1
-        save_current_session_meta()
-        st.rerun()
+    # # if st.button("🆕 New session", use_container_width=True):
+    # #     new_id = str(uuid4())
+    # #     st.session_state.session_id = new_id
+    # #     st.session_state.messages = []
+    # #     st.session_state.uploader_key += 1
+    # #     save_current_session_meta()
+    # #     st.rerun()
 
-    st.divider()
+    # st.divider()
 
-    # ── Past sessions list ─────────────────────────────────────────────────
-    st.markdown("**Sessions**")
+    st.markdown("**Sessions**", unsafe_allow_html=True)
 
     all_sessions = st.session_state.all_sessions
     if len(all_sessions) <= 1:
@@ -180,10 +208,26 @@ with st.sidebar:
             """,
             unsafe_allow_html=True,
         )
+
+        if st.button("🆕 New session", use_container_width=True):
+            new_id = str(uuid4())
+            st.session_state.session_id = new_id
+            st.session_state.messages = []
+            st.session_state.uploader_key += 1
+            save_current_session_meta()
+            st.rerun()
         with st.container(height=180, key="session_list_container"):
             for sid, meta in reversed(list(all_sessions.items())):
+                # print(f"Session {sid}: {meta}")
+                conversation = fetch_session_conversation(sid)
+                if len(conversation) == 0:
+                    first_user_msg = "No messages yet."
+                elif conversation[0]["role"] == "user":
+                    first_user_msg = conversation[0]["content"]
+                else:
+                    first_user_msg = conversation[1]["content"] if len(conversation) > 1 else "No messages yet."
                 is_active = sid == session_id
-                label = f"{'🟢 ' if is_active else ''}{meta['label']}"
+                label = f"{'🟢 ' if is_active else ''}{first_user_msg}"
                 help_text = f"Created {meta['created_at']}"
                 btn_type = "primary" if is_active else "secondary"
 
@@ -200,8 +244,8 @@ with st.sidebar:
 
     st.divider()
 
-    # ── Document upload ────────────────────────────────────────────────────
-    st.markdown("**Documents**")
+    st.markdown("**Documents**", unsafe_allow_html=True)
+
     uploaded_files = st.file_uploader(
         "Upload a document",
         type=["pdf", "txt"],
@@ -213,15 +257,19 @@ with st.sidebar:
     for uploaded_file in uploaded_files:
         file_bytes = uploaded_file.read()
         doc_payload = prepare_document_payload(
-            file_bytes, uploaded_file.name, short_id
+            file_bytes,
+            uploaded_file.name,
+            short_id,
         )
+
         with st.spinner(f"Uploading {uploaded_file.name}..."):
             response = requests.post(
                 f"{API_BASE_URL}/documents",
                 json=doc_payload,
             )
+
         if response.status_code == 200:
-            st.session_state.all_docs = fetch_all_documents()  # refresh globally
+            st.session_state.all_docs = fetch_all_documents()
             st.toast(f"{uploaded_file.name} uploaded!", icon="✅")
         else:
             st.toast(f"❌ Upload failed ({response.status_code})", icon="❌")
@@ -230,7 +278,6 @@ with st.sidebar:
         st.session_state.uploader_key += 1
         st.rerun()
 
-    # ── Document list (scrollable + selectable) ────────────────────────────
     if st.session_state.all_docs:
         with st.container(height=200):
             selected_doc_ids = []
@@ -238,6 +285,7 @@ with st.sidebar:
                 checked = st.checkbox(f"📄 {filename}", key=f"doc_{doc_id}")
                 if checked:
                     selected_doc_ids.append(doc_id)
+
         st.session_state.selected_docs = selected_doc_ids
     else:
         st.caption("No documents uploaded yet.")
@@ -248,41 +296,57 @@ with st.sidebar:
 st.title("Research Paper RAG 📚")
 st.caption("Ask questions about your uploaded research papers.")
 
-
 st.session_state.messages = fetch_session_conversation(session_id)
 
 if not st.session_state.messages:
     with st.chat_message("assistant", avatar=BOT_AVATAR):
         st.markdown(
-            "Hi! Upload a paper from the sidebar and ask me anything about it."
+            "Hi! Upload a paper from the sidebar and ask me anything about it.",
+            unsafe_allow_html=True,
         )
 
 for msg in st.session_state.messages:
     avatar = USER_AVATAR if msg["role"] == "user" else BOT_AVATAR
     with st.chat_message(msg["role"], avatar=avatar):
-        st.markdown(msg["content"])
+        st.markdown(
+            msg["content"],
+            unsafe_allow_html=True,
+        )
 
 selected_docs = st.session_state.get("selected_docs", [])
 uploaded_docs = st.session_state.get("all_docs", {})
 
 if uploaded_docs and not selected_docs:
     st.warning(
-        "No documents selected — check at least one in the sidebar for the model to use.", icon="📄")
+        "No documents selected — check at least one in the sidebar for the model to use.",
+        icon="📄",
+    )
 
 query = st.chat_input("Ask a question about your documents...")
 
 if query:
-    # 1. Show and persist the user message
-    st.session_state.messages.append({"role": "user", "content": query})
-    with st.chat_message("user", avatar=USER_AVATAR):
-        st.markdown(query)
+    st.session_state.messages.append(
+        {"role": "user", "content": query}
+    )
 
-    # 2. Get and show the assistant response
+    with st.chat_message("user", avatar=USER_AVATAR):
+        st.markdown(
+            query,
+            unsafe_allow_html=True,
+        )
+
     selected_docs = st.session_state.get("selected_docs", [])
+
     with st.chat_message("assistant", avatar=BOT_AVATAR):
         with st.spinner("Thinking..."):
             answer = send_query(query, session_id, selected_docs)
-        st.markdown(answer)
 
-    # 3. Persist the assistant response
-    st.session_state.messages.append({"role": "assistant", "content": answer})
+        handle_answer(
+            st,
+            answer,
+            stream_response=STREAM_RESPONSE,
+        )
+
+    st.session_state.messages.append(
+        {"role": "assistant", "content": answer}
+    )

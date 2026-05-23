@@ -15,7 +15,6 @@ from db import (
     index_document,
     retrieve_documents,
     get_vectordb_dep,
-    get_text_splitter_dep,
     VectorDBInterface,
     store_message,
     fetch_conversation,
@@ -60,9 +59,10 @@ class MockLLM:
         lines = []
         for i, doc in enumerate(documents):
             filename = doc.metadata.get("filename", "unknown file")
-            page = doc.metadata.get("page_index", "?")
+            page = doc.metadata.get("page", "?")
+            section = doc.metadata.get("section", "?")
             snippet = doc.page_content[:200].replace("\n", " ")
-            lines.append(f"[{i}] {filename} p.{page}: {snippet}...")
+            lines.append(f"[{i}] {filename} [p.{page}] [section: {section}] \n\n {snippet}...")
         return f'User msg: {user_msg}\n\n\n' + "\n\n\n".join(lines)
 
 class MockEmbedder:
@@ -73,14 +73,18 @@ class MockEmbedder:
 # Load models 
 # ----------------------------------------
 if os.getenv("LOAD_MODELS", "false").lower() == "true":
-    print("Loading models")
     from ml import LLM, Embedder
-    llm = LLM("google/gemma-3-4b-it")
-    embedder = Embedder("Qwen/Qwen3-Embedding-4B")
+    llm_model = os.getenv("LLM_MODEL", "google/gemma-3-4b-it")
+    print("Loading model:", llm_model)
+    llm = LLM(llm_model)
+    
+    # NOTE: As for now, embedder is not initialized here
+    #embedder_model = os.getenv("EMBEDDER_MODEL", "Qwen/Qwen3-Embedding-4B")
+    #embedder = Embedder(embedder_model)
 else:
-    print("Skipping models loading")
+    print("Using mock model")
     llm = MockLLM()
-    embedder = MockEmbedder()
+    #embedder = MockEmbedder()
 
 # ----------------------------------------
 # Health / root
@@ -116,7 +120,6 @@ async def health():
 def create_session() -> str:
     """
     Create a new empty session for the user.
-
     Returns:
         session_id: The ID of the newly created session.
     """
@@ -127,7 +130,6 @@ def create_session() -> str:
 def delete_session(session_id: str) -> bool:
     """
     Delete an existing session.
-
     Returns:
         bool: True if deleted successfully.
     """
@@ -138,7 +140,6 @@ def delete_session(session_id: str) -> bool:
 def get_session(session_id: str) -> dict:
     """
     Get session conversation and metadata.
-
     Returns:
         dict: Session conversation and metadata.
     """
@@ -170,8 +171,7 @@ class ConversationEntry(BaseModel):
 
 
 def _append_message(session_id: str, request: CreateOrUpdateConversation, vectordb: VectorDBInterface | None = None) -> str:
-    store_message(session_id=session_id, role=request.role,
-                  message=request.message)
+    store_message(session_id=session_id, role=request.role, message=request.message)
     return request.message
 
 @app.post("/sessions/{session_id}/conversation")
@@ -182,7 +182,6 @@ def create_conversation_for_session(
 ) -> str:
     """
     Start or append to a conversation for a session.
- 
     Returns:
         bool: True if stored successfully.
     """
@@ -191,30 +190,32 @@ def create_conversation_for_session(
 
 @app.put("/sessions/{session_id}/conversation")
 def update_conversation_of_session(
-    session_id: str, 
+    session_id: str,
     request: CreateOrUpdateConversation,
     vectordb=Depends(get_vectordb_dep),
 ) -> str:
     """
     Append a message to an existing session's conversation.
- 
     Returns:
         bool: True if stored successfully.
     """
     _append_message(session_id, request, vectordb)
-    conversation = [{"role":message.role, "content":message.message} for message in get_conversation_for_session(session_id)]
+    conversation = [{"role": message.role, "content": message.message}
+                    for message in get_conversation_for_session(session_id)]
     chunks = retrieve_documents(
         query=request.message,
         doc_ids=request.doc_ids,
         vectordb=vectordb,
     )
 
-    response = llm.generate(conversation, chunks)
-    response_request = CreateOrUpdateConversation(
-        message=response,
-        role="assistant",
-        doc_ids=[])
-    _append_message(session_id, response_request, vectordb)
+    try:
+        response = llm.generate(conversation, chunks)
+    except Exception as e:
+        print(f"LLM generation failed: {e}")
+        response = "Something went wrong while generating a response. Please try asking your question again."
+
+    _append_message(session_id, CreateOrUpdateConversation(
+        message=response, role="assistant", doc_ids=[]))
     return response
 
 
@@ -224,7 +225,6 @@ def get_conversation_for_session(
 ) -> list[ConversationEntry]:
     """
     Retrieve the full message history for a session in chronological order.
- 
     Returns:
         List of messages with role, content, and timestamp.
     """
@@ -244,12 +244,10 @@ def get_conversation_for_session(
 def get_conversation_of_session(session_id: str) -> dict:
     """
     Retrieve the full conversation for a session, including the latest response.
-
     Returns:
         dict: The complete conversation history.
     """
     raise NotImplementedError()
-
 
 # ----------------------------------------
 # Document management
@@ -279,7 +277,6 @@ class AddDocumentRequest(BaseModel):
 def add_document(
     request: AddDocumentRequest,
     vectordb=Depends(get_vectordb_dep),
-    text_splitter=Depends(get_text_splitter_dep),
 ) -> str:
     """
     Decode, store, and index a base64-encoded PDF.
@@ -297,8 +294,7 @@ def add_document(
         return index_document(
             file_bytes,
             filename=request.filename,
-            vectordb=vectordb,
-            text_splitter=text_splitter,
+            vectordb=vectordb
         )
     except Exception as e:
         print("Error", e)
@@ -348,7 +344,7 @@ def delete_document(document_id: str) -> bool:
 # ----------------------------------------
 
 class SearchKeywordRequest(BaseModel):
-    list_of_document_ids: list[str]
+    document_ids: list[str]
     query: str
 
 
@@ -364,7 +360,7 @@ def search_keyword(request: SearchKeywordRequest) -> list:
 
 
 class SearchEmbeddingRequest(BaseModel):
-    list_of_document_ids: list[str]
+    document_ids: list[str]
     query: str
 
 
@@ -375,7 +371,7 @@ def search_embedding(
 ) -> list:
     chunks = retrieve_documents(
         query=request.query,
-        doc_ids=request.list_of_document_ids,
+        doc_ids=request.document_ids,
         vectordb=vectordb,
     )
 

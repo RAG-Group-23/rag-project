@@ -1,15 +1,13 @@
-# vectorstore.py
 import os
 import json
-import uuid
 import psycopg2
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from langchain_community.vectorstores import Chroma
 from langchain_community.vectorstores import VectorStore
 import hashlib
 from langchain_postgres import PGEngine, PGVectorStore
-from psycopg.errors import DuplicateTable
+from langchain_chroma import Chroma
+from langchain_core.embeddings import Embeddings
 
 
 def document_hash(data: bytes) -> str:
@@ -69,7 +67,7 @@ class VectorDBInterface(ABC):
 
 
 class PGVectorDBInstance(VectorDBInterface):
-    def __init__(self, embedding_func, collection_name, vector_size: int = 384):
+    def __init__(self, embedding_func: Embeddings, collection_name: str, vector_size: int):
         self.connection_string = None
         self._raw_conn_string = None
         self.embedding = embedding_func
@@ -110,7 +108,7 @@ class PGVectorDBInstance(VectorDBInterface):
             with conn.cursor() as cur:
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS pdf_documents (
-                        doc_id      TEXT PRIMARY KEY,
+                        document_id      TEXT PRIMARY KEY,
                         filename    TEXT NOT NULL,
                         pdf         BYTEA NOT NULL,
                         uploaded_at TIMESTAMPTZ DEFAULT now()
@@ -141,7 +139,7 @@ class PGVectorDBInstance(VectorDBInterface):
         with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO pdf_documents (doc_id, filename, pdf) VALUES (%s, %s, %s) ON CONFLICT (doc_id) DO NOTHING",
+                    "INSERT INTO pdf_documents (document_id, filename, pdf) VALUES (%s, %s, %s) ON CONFLICT (document_id) DO NOTHING",
                     (doc_id, filename, psycopg2.Binary(file_bytes))
                 )
         return doc_id
@@ -151,12 +149,13 @@ class PGVectorDBInstance(VectorDBInterface):
         with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT filename, pdf FROM pdf_documents WHERE doc_id = %s",
+                    "SELECT filename, pdf FROM pdf_documents WHERE document_id = %s",
                     (doc_id,)
                 )
                 row = cur.fetchone()
                 if row is None:
-                    raise KeyError(f"No document found for doc_id={doc_id}")
+                    raise KeyError(
+                        f"No document found for document_id={doc_id}")
                 filename, pdf_bytes = row
                 return filename, bytes(pdf_bytes)
 
@@ -206,7 +205,7 @@ class PGVectorDBInstance(VectorDBInterface):
         with psycopg2.connect(self._raw_conn_string) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT doc_id, filename FROM pdf_documents ORDER BY uploaded_at ASC"
+                    "SELECT document_id, filename FROM pdf_documents ORDER BY uploaded_at ASC"
                 )
                 return {doc_id: filename for doc_id, filename in cur.fetchall()}
 
@@ -228,13 +227,13 @@ class PGVectorDBInstance(VectorDBInterface):
     def as_retriever(self, doc_ids: list[str] | None = None, k: int = 4):
         vs = self.get_vectorstore()
         search_kwargs = {"k": k}
-        if doc_ids is not None:
-            search_kwargs["filter"] = {"doc_id": {"$in": doc_ids}}
+        if doc_ids:
+            search_kwargs["filter"] = {"document_id": {"$in": doc_ids}}
         return vs.as_retriever(search_kwargs=search_kwargs)
 
 
 class ChromaDBInstance(VectorDBInterface):
-    def __init__(self, embedding_func, persist_directory: str = "./chroma_db"):
+    def __init__(self, embedding_func: Embeddings, persist_directory: str = "./chroma_db"):
         print("Init ChromaDB")
         self.embedding = embedding_func
         self.persist_directory = persist_directory
@@ -255,7 +254,7 @@ class ChromaDBInstance(VectorDBInterface):
         matches = [f for f in os.listdir(
             self._pdf_store_dir) if f.startswith(doc_id)]
         if not matches:
-            raise KeyError(f"No document found for doc_id={doc_id}")
+            raise KeyError(f"No document found for document_id={doc_id}")
         filepath = os.path.join(self._pdf_store_dir, matches[0])
         _, original_filename = matches[0].split("@", 1)
         with open(filepath, "rb") as f:
@@ -333,6 +332,6 @@ class ChromaDBInstance(VectorDBInterface):
     def as_retriever(self, doc_ids: list[str] | None = None, k: int = 4):
         vs = self.get_vectorstore()
         search_kwargs = {"k": k}
-        if doc_ids is not None:
-            search_kwargs["filter"] = {"doc_id": {"$in": doc_ids}}
+        if doc_ids:
+            search_kwargs["filter"] = {"document_id": {"$in": doc_ids}}
         return vs.as_retriever(search_kwargs=search_kwargs)

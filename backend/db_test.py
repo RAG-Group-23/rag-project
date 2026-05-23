@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from langchain_huggingface import HuggingFaceEmbeddings
 
 from main import app  
-from db import get_vectordb_dep, get_text_splitter_dep, get_default_text_splitter
+from db import get_vectordb_dep, get_default_text_splitter
 from vectorstore import ChromaDBInstance
 
 
@@ -40,7 +40,6 @@ def test_add_document_indexes_and_retrieves():
     )
 
     app.dependency_overrides[get_vectordb_dep] = lambda: test_vectordb
-    app.dependency_overrides[get_text_splitter_dep] = get_default_text_splitter
 
     try:
         client = TestClient(app)
@@ -49,7 +48,6 @@ def test_add_document_indexes_and_retrieves():
             json={
                 "raw_document": payload,
                 "filename": "paper.pdf",
-                "collection": "test-session",
                 "session_id" : "testy"
             },
         )
@@ -82,7 +80,6 @@ def test_search_embedding_returns_relevant_chunks():
     )
 
     app.dependency_overrides[get_vectordb_dep] = lambda: test_vectordb
-    app.dependency_overrides[get_text_splitter_dep] = get_default_text_splitter
 
     try:
         client = TestClient(app)
@@ -92,7 +89,6 @@ def test_search_embedding_returns_relevant_chunks():
             json={
                 "raw_document": payload,
                 "filename": "paper.pdf",
-                "collection": "test-session",
                 "session_id": "testy"
             },
         )
@@ -102,7 +98,7 @@ def test_search_embedding_returns_relevant_chunks():
         r = client.post(
             "/search/embedding",
             json={
-                "list_of_document_ids": [doc_id],
+                "document_ids": [doc_id],
                 "query": "What is attention?",
             },
         )
