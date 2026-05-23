@@ -9,6 +9,7 @@ import hashlib
 from langchain_postgres import PGEngine, PGVectorStore
 from langchain_chroma import Chroma
 from langchain_core.embeddings import Embeddings
+from langchain_core.vectorstores import VectorStoreRetriever
 
 
 def document_hash(data: bytes) -> str:
@@ -89,7 +90,10 @@ class VectorDBInterface(ABC):
             KeyError: If no document exists for the given doc_id.
         """
         pass
-
+    
+    @abstractmethod
+    def as_retriever(self, doc_ids: list[str] | None = None, k: int = 4) -> VectorStoreRetriever:
+        pass
 
 # ---------------------------------------------------------------------------
 # PostgreSQL / pgvector backend
@@ -378,7 +382,7 @@ class PGVectorDBInstance(VectorDBInterface):
             )
         return self.vectorstore
 
-    def as_retriever(self, doc_ids: list[str] | None = None, k: int = 4):
+    def as_retriever(self, doc_ids: list[str] | None = None, k: int = 4) -> VectorStoreRetriever:
         vs = self.get_vectorstore()
         search_kwargs: dict = {"k": k}
         if doc_ids:
