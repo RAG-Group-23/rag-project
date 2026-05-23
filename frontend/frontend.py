@@ -183,6 +183,42 @@ def confirm_delete_documents_dialog(doc_ids: list[str]):
             st.rerun()
 
 
+@st.dialog("Index documents from URLs")
+def index_from_url_dialog():
+    indexing = st.session_state.get("indexing_in_progress", False)
+
+    st.caption("Enter one or more URLs separated by commas or newlines.")
+    raw = st.text_area(
+        "URLs", placeholder="https://example.com/paper1.pdf, https://example.com/paper2.pdf", disabled=indexing)
+
+    if indexing:
+        st.spinner("Indexing documents, please wait...")
+
+    if st.button("Index", type="primary", use_container_width=True, disabled=indexing):
+        urls = [u.strip() for u in raw.replace(
+            "\n", ",").split(",") if u.strip()]
+        if not urls:
+            st.warning("Please enter at least one URL.")
+        else:
+            st.session_state.indexing_in_progress = True
+            with st.spinner("Indexing documents, please wait..."):
+                try:
+                    response = requests.post(
+                        f"{API_BASE_URL}/documents/url",
+                        json={"urls": urls, "session_id": short_id},
+                    )
+                    if response.status_code == 200:
+                        st.session_state.all_docs = fetch_all_documents()
+                        st.toast(f"Indexed {len(urls)} document(s)!", icon="✅")
+                    else:
+                        st.error(
+                            f"Failed ({response.status_code}): {response.json().get('detail', '')}")
+                except requests.exceptions.RequestException as e:
+                    st.error(f"Could not reach backend: {e}")
+                finally:
+                    st.session_state.indexing_in_progress = False
+            st.rerun()
+
 # ── UI Config ──────────────────────────────────────────────────────────────
 st.set_page_config(page_title="RAG Group 23", page_icon="📚", layout="wide")
 # NOTE: CSS injection, may be buggy, careful
@@ -284,7 +320,7 @@ with st.sidebar:
                     if st.button("🗑", key=f"sess_del_{sid}", help="Delete session", use_container_width=True):
                         confirm_delete_session_dialog(
                             sid, f"session {sid[:6]}")
-
+                        
     st.divider()
 
     # ── Documents ──────────────────────────────────────────────────────────
@@ -335,6 +371,10 @@ with st.sidebar:
         st.caption("No documents uploaded yet.")
 
     st.divider()
+    
+    if st.button("🔗 Index from URL", use_container_width=True):
+        index_from_url_dialog()
+
 
 # ── Main chat ──────────────────────────────────────────────────────────────
 st.title("Research Paper RAG 📚")

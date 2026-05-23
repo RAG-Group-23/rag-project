@@ -7,7 +7,7 @@ import os
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, validator, field_validator
+from pydantic import BaseModel, field_validator
 from contextlib import asynccontextmanager
 
 
@@ -22,6 +22,8 @@ from db import (
     get_session_ids,
     delete_session_db,
     delete_document_db,
+    index_document_from_url,
+    index_document_from_url_v2
 )
 
 @asynccontextmanager
@@ -278,6 +280,18 @@ class AddDocumentRequest(BaseModel):
         return v
 
 
+class AddDocumentByUrlsRequest(BaseModel):
+    urls: list[str]   
+    session_id: str
+
+    @field_validator("urls")
+    @classmethod
+    def validate_base64(cls, v):
+        if len(v) < 1:
+            raise ValueError("must contain at least one url")
+        return v
+
+
 @app.post("/documents")
 def add_document(
     request: AddDocumentRequest,
@@ -306,6 +320,20 @@ def add_document(
         print("Error", e)
         raise HTTPException(
             status_code=500, detail=f"Error indexing document")
+
+
+@app.post("/documents/url")
+def add_documents_by_url(
+    request: AddDocumentByUrlsRequest,
+    vectordb=Depends(get_vectordb_dep),
+):
+    for url in request.urls:
+        try:
+            index_document_from_url_v2(url=url, vectordb=vectordb)
+        except Exception as e:
+            print("Error", e)
+            raise HTTPException(
+                status_code=500, detail=f"Error indexing document")
 
 
 @app.get("/documents/{document_id}")

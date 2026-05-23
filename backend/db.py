@@ -30,6 +30,7 @@ Embedding / chunking:
 
 import os
 from io import BytesIO
+import httpx
 from typing import Any, Optional
 
 import psycopg2
@@ -197,6 +198,11 @@ def get_vectordb_dep() -> VectorDBInterface:
 # Core indexing logic
 # ----------------------------------------
 
+def get_title_for_sections(sections) -> str:
+    for section in sections:
+        if section.title is not None:
+            return section.title.replace("*", '').strip().replace(' ', '_')
+
 def index_document(
     file_bytes: bytes,
     *,
@@ -228,6 +234,74 @@ def index_document(
     # 5. Index
     vectordb.index_documents(chunks)
     return doc_id
+
+
+def index_document_from_url(
+    url: str,
+    *,
+    vectordb: Optional[VectorDBInterface] = None,
+) -> str:
+    response = httpx.get(url, follow_redirects=True, timeout=30)
+    response.raise_for_status()
+
+    content_type = response.headers.get("content-type", "")
+    if "application/pdf" not in content_type:
+        raise ValueError(
+            f"URL does not point to a PDF (Content-Type: {content_type})")
+
+    file_bytes = response.content
+
+    if not file_bytes.startswith(b"%PDF"):
+        raise ValueError(
+            "File does not appear to be a valid PDF (missing %PDF header)")
+
+    filename = url.split("/")[-1].split("?")[0] or "document.pdf"
+    return index_document(file_bytes, filename=filename, vectordb=vectordb)
+
+
+def index_document_from_url_v2(
+    url: str,
+    *,
+    vectordb: Optional[VectorDBInterface] = None,
+) -> str:
+    if vectordb is None:
+        vectordb = _cached_default_vectordb()
+        
+    response = httpx.get(url, follow_redirects=True, timeout=30)
+    response.raise_for_status()
+
+    content_type = response.headers.get("content-type", "")
+    if "application/pdf" not in content_type:
+        raise ValueError(
+            f"URL does not point to a PDF (Content-Type: {content_type})")
+
+    file_bytes = response.content
+
+    # 1. Extract text & image references from the PDF
+    sections = extract_sections(BytesIO(file_bytes))
+    
+    filename = f'{get_title_for_sections(sections)}.pdf'
+    
+    # 2. Persist raw PDF
+    doc_id = vectordb.store_pdf(filename=filename, file_bytes=file_bytes)
+
+    # 3. Chunk pages with research-paper-aware chunker
+    chunks = chunk_sections(
+        sections,
+        document_id=doc_id,
+        chunk_size=int(os.getenv("CHUNK_SIZE", "256")),
+        chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "64")),
+    )
+
+    # 4. Add fields expected by retrieval / prompt formatting
+    for chunk in chunks:
+        chunk.metadata["filename"] = filename
+        # chunk.metadata["doc_id"] = doc_id
+
+    # 5. Index
+    vectordb.index_documents(chunks)
+    return doc_id
+
 
 def retrieve_documents(
     query: str,
