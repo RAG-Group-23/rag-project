@@ -194,7 +194,7 @@ def index_from_url_dialog():
     if indexing:
         st.spinner("Indexing documents, please wait...")
 
-    if st.button("Index", type="primary", use_container_width=True, disabled=indexing):
+    elif st.button("Index", type="primary", use_container_width=True, disabled=indexing):
         urls = [u.strip() for u in raw.replace(
             "\n", ",").split(",") if u.strip()]
         if not urls:
@@ -217,7 +217,8 @@ def index_from_url_dialog():
                     st.error(f"Could not reach backend: {e}")
                 finally:
                     st.session_state.indexing_in_progress = False
-            st.rerun()
+        st.rerun()
+
 
 # ── UI Config ──────────────────────────────────────────────────────────────
 st.set_page_config(page_title="RAG Group 23", page_icon="📚", layout="wide")
@@ -315,7 +316,7 @@ with st.sidebar:
                     if st.button("🗑", key=f"sess_del_{sid}", help="Delete session", use_container_width=True):
                         confirm_delete_session_dialog(
                             sid, f"session {sid[:6]}")
-                        
+
     st.divider()
 
     # ── Documents ──────────────────────────────────────────────────────────
@@ -366,7 +367,7 @@ with st.sidebar:
         st.caption("No documents uploaded yet.")
 
     st.divider()
-    
+
     if st.button("🔗 Index from URL", use_container_width=True):
         index_from_url_dialog()
 
@@ -425,4 +426,3 @@ if query:
         handle_answer(st, answer, stream_response=STREAM_RESPONSE)
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
-
