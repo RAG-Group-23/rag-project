@@ -222,31 +222,17 @@ def index_from_url_dialog():
 # ── UI Config ──────────────────────────────────────────────────────────────
 st.set_page_config(page_title="RAG Group 23", page_icon="📚", layout="wide")
 # NOTE: CSS injection, may be buggy, careful
-st.markdown("""
+# Sidebar: https://discuss.streamlit.io/t/specify-sidebar-width/45866/6
+st.markdown(
+    """
     <style>
-    [data-testid="stSidebarContent"] {
-        min-width: 350px;
-        max-width: 350px;
-    }
+        section[data-testid="stSidebar"] {
+            width: 350px !important; # Set the width to your desired value
+        }
     </style>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-    <style>
-    [data-testid="stSidebar"] {
-        min-width: 350px;
-        max-width: 350px;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# st.markdown("""
-#     <style>
-#     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-#         gap: 0rem;
-#     }
-#     </style>
-# """, unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
 # ── Session state bootstrap ────────────────────────────────────────────────
 if "session_id" not in st.session_state:
@@ -374,7 +360,7 @@ with st.sidebar:
         st.session_state.selected_docs = selected_doc_ids
 
         if selected_doc_ids:
-            if st.button("🗑️ Delete selected", use_container_width=True):
+            if st.button("🗑 Delete selected", use_container_width=True):
                 confirm_delete_documents_dialog(selected_doc_ids)
     else:
         st.caption("No documents uploaded yet.")
