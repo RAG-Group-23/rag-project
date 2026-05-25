@@ -4,6 +4,7 @@ import time
 from uuid import uuid4
 import requests
 import os
+from urllib.parse import urlparse
 
 USER_AVATAR = None
 BOT_AVATAR = None
@@ -108,7 +109,6 @@ def save_current_session_meta():
 
 
 def do_delete_session(sid: str):
-    """Execute the API call to delete a session and clean up local state."""
     try:
         response = requests.delete(f"{API_BASE_URL}/sessions/{sid}")
         if response.status_code == 200:
@@ -127,7 +127,6 @@ def do_delete_session(sid: str):
 
 
 def do_delete_document(doc_id: str, filename: str):
-    """Execute the API call to delete a document and clean up local state."""
     try:
         response = requests.delete(f"{API_BASE_URL}/documents/{doc_id}")
         if response.status_code == 200:
@@ -183,52 +182,13 @@ def confirm_delete_documents_dialog(doc_ids: list[str]):
             st.rerun()
 
 
-@st.dialog("Index documents from URLs")
-def index_from_url_dialog():
-    indexing = st.session_state.get("indexing_in_progress", False)
-
-    st.caption("Enter one or more URLs separated by commas or newlines.")
-    raw = st.text_area(
-        "URLs", placeholder="https://example.com/paper1.pdf, https://example.com/paper2.pdf", disabled=indexing)
-
-    if indexing:
-        st.spinner("Indexing documents, please wait...")
-
-    elif st.button("Index", type="primary", use_container_width=True, disabled=indexing):
-        urls = [u.strip() for u in raw.replace(
-            "\n", ",").split(",") if u.strip()]
-        if not urls:
-            st.warning("Please enter at least one URL.")
-        else:
-            st.session_state.indexing_in_progress = True
-            with st.spinner("Indexing documents, please wait..."):
-                try:
-                    response = requests.post(
-                        f"{API_BASE_URL}/documents/url",
-                        json={"urls": urls, "session_id": short_id},
-                    )
-                    if response.status_code == 200:
-                        st.session_state.all_docs = fetch_all_documents()
-                        st.toast(f"Indexed {len(urls)} document(s)!", icon="✅")
-                    else:
-                        st.error(
-                            f"Failed ({response.status_code}): {response.json().get('detail', '')}")
-                except requests.exceptions.RequestException as e:
-                    st.error(f"Could not reach backend: {e}")
-                finally:
-                    st.session_state.indexing_in_progress = False
-        st.rerun()
-
-
 # ── UI Config ──────────────────────────────────────────────────────────────
 st.set_page_config(page_title="RAG Group 23", page_icon="📚", layout="wide")
-# NOTE: CSS injection, may be buggy, careful
-# Sidebar: https://discuss.streamlit.io/t/specify-sidebar-width/45866/6
 st.markdown(
     """
     <style>
         section[data-testid="stSidebar"] {
-            width: 350px !important; # Set the width to your desired value
+            width: 350px !important;
         }
     </style>
     """,
@@ -257,10 +217,47 @@ if "all_sessions" not in st.session_state:
             "uploaded_docs": {},
         }
 
+if "show_url_indexer" not in st.session_state:
+    st.session_state.show_url_indexer = False
+
+if "indexing_in_progress" not in st.session_state:
+    st.session_state.indexing_in_progress = False
+
+if "pending_urls" not in st.session_state:
+    st.session_state.pending_urls = []
+
 save_current_session_meta()
 
 session_id = st.session_state.session_id
 short_id = session_id[:6]
+
+# ── Blocking indexing state: runs the request, then clears itself ──────────
+# This block must come before the sidebar and main UI so st.stop() halts
+# everything else while indexing is in progress.
+if st.session_state.indexing_in_progress:
+    st.title("Research Paper RAG 📚")
+    with st.spinner("Indexing documents, please wait…"):
+        urls = st.session_state.pending_urls
+        try:
+            response = requests.post(
+                f"{API_BASE_URL}/documents/url",
+                json={"urls": urls, "session_id": short_id},
+            )
+            if response.status_code == 200:
+                st.session_state.all_docs = fetch_all_documents()
+                st.toast(f"Indexed {len(urls)} document(s)!", icon="✅")
+            else:
+                st.toast(
+                    f"Failed ({response.status_code}): {response.json().get('detail', '')}",
+                    icon="❌",
+                )
+        except requests.exceptions.RequestException as e:
+            st.toast(f"Could not reach backend: {e}", icon="⚠️")
+        finally:
+            st.session_state.indexing_in_progress = False
+            st.session_state.pending_urls = []
+            st.session_state.show_url_indexer = False
+    st.rerun()
 
 # ── Sidebar ────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -369,7 +366,46 @@ with st.sidebar:
     st.divider()
 
     if st.button("🔗 Index from URL", use_container_width=True):
-        index_from_url_dialog()
+        st.session_state.show_url_indexer = True
+        st.rerun()
+
+def is_valid_url(url: str) -> bool:
+    try:
+        result = urlparse(url)
+        return all([result.scheme in ("http", "https"), result.netloc])
+    except Exception:
+        return False
+
+# ── URL indexer inline UI (replaces the main chat area) ───────────────────
+if st.session_state.show_url_indexer:
+    st.title("Research Paper RAG 📚")
+    st.subheader("🔗 Index documents from URLs")
+    st.caption("Enter one or more URLs separated by commas or newlines.")
+
+    raw = st.text_area(
+        "URLs",
+        placeholder="https://example.com/paper1.pdf, https://example.com/paper2.pdf",
+        height=120,
+    )
+
+    col_index, col_cancel = st.columns(2)
+    with col_index:
+        if st.button("Index", type="primary", use_container_width=True):
+            urls = [u.strip() for u in raw.replace(
+                "\n", ",").split(",") if u.strip()]
+            urls = [u for u in urls if is_valid_url(u)]
+            if not urls:
+                st.warning("Please enter at least one URL.")
+            else:
+                st.session_state.pending_urls = urls
+                st.session_state.indexing_in_progress = True
+                st.rerun()
+    with col_cancel:
+        if st.button("Cancel", use_container_width=True):
+            st.session_state.show_url_indexer = False
+            st.rerun()
+
+    st.stop()  # prevent the chat UI from rendering while the form is open
 
 
 # ── Main chat ──────────────────────────────────────────────────────────────
@@ -399,7 +435,6 @@ if uploaded_docs and not selected_docs:
         icon="📄",
     )
 
-
 selected_docs = st.session_state.get("selected_docs", [])
 uploaded_docs = st.session_state.get("all_docs", {})
 is_chat_disabled = len(selected_docs) == 0
@@ -421,7 +456,6 @@ if query:
 
     with st.chat_message("assistant", avatar=BOT_AVATAR):
         with st.spinner("Thinking..."):
-            # Send the guaranteed verified list instead of the leaky state tracker
             answer = send_query(query, session_id, strictly_selected_docs)
         handle_answer(st, answer, stream_response=STREAM_RESPONSE)
 
