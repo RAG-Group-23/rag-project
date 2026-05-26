@@ -109,6 +109,9 @@ def start_backend() -> bool:
             "DB_NAME":     DB_NAME,
             "DB_USER":     DB_USER,
             "DB_PASSWORD": DB_PASSWORD,
+            "LOAD_MODELS" : "true",
+            "EMBEDDING_MODEL" : "Qwen/Qwen3-Embedding-4B",
+            "LLM_MODEL" : "google/gemma-3-4b-it"
         },
     )
 
