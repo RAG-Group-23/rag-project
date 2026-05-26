@@ -1,4 +1,5 @@
 import json
+import random
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, Gemma3ForConditionalGeneration, AutoProcessor
 from sentence_transformers import SentenceTransformer
@@ -6,7 +7,7 @@ from prompts import MAIN_ASSISTANT_PROMPT
 from transformers import BitsAndBytesConfig
 from langchain_core.documents import Document
 import os
-
+import re 
 
 class LLM:
     def __init__(self, model_name: str, load_model=True):
@@ -99,7 +100,7 @@ class LLM:
     def generate(self,
                  messages: list[dict],
                  documents: list[Document],
-                 max_new_tokens: int = 500,
+                 max_new_tokens: int = 1500,
                  temperature: float = 0.7,
                  top_p: float = 0.9,
                  ) -> str:
@@ -198,6 +199,10 @@ class LLM:
             case "google/gemma-3-4b-it":
                 # import json
                 # print(json.dumps(conversation, indent=2))
+
+                # remove all but last user message
+                conversation = conversation[-1:]
+
                 for i, msg in enumerate(conversation):
                     conversation[i]["content"] = [
                         {"type": "text", "text": msg["content"]}]
@@ -214,6 +219,18 @@ class LLM:
                 if len(documents) == 0:
                     conversation[-1]["content"][0]["text"] += f"No relevant documents were found.\n"
                 print("DEBUG: Conversation with document headers:\n", json.dumps(conversation, indent=2))
+                
+                # remove html references from previous messages
+                # example reference "<span style='color: gray;'>[filename — Section: section (p. ?)]</span>"
+                for i in range(len(conversation)-1):
+                    regex = r"<span style='color: gray;'>\[(.*?)\]</span>"
+                    # conversation[i]["content"][0]["text"] = re.sub(regex, r"", conversation[i]["content"][0]["text"])
+                    conversation[i]["content"][0]["text"] = re.sub(
+                        regex,
+                        lambda match: f"<{{{random.randint(1,10)}}}>",
+                        conversation[i]["content"][0]["text"]
+                    )
+                print("DEBUG: Conversation after removing HTML references:\n", json.dumps(conversation, indent=2))
                 return self.processor.apply_chat_template(
                     conversation,
                     add_generation_prompt=True,
@@ -237,6 +254,10 @@ class LLM:
         for i, doc in enumerate(chunks):
             header = self._format_doc_header_for_humans(doc)
             text = text.replace(f"<{{{i}}}>", header)
+
+        # remove invalid references that were not replaced (e.g. <{11}>, <{12}>, etc.)            
+        text = re.sub(r"<\{\d+\}>", "", text)
+
         return text
 
 
