@@ -450,11 +450,14 @@ class ChromaDBInstance(VectorDBInterface):
 
         # Remove vector chunks that carry this document_id in their metadata.
         vs = self.get_vectorstore()
-        # Chroma supports metadata filters on delete
-        vs.delete(filter={"document_id": doc_id})
+        # First fetch the internal Chroma IDs for chunks belonging to this document
+        results = vs.get(where={"document_id": doc_id})
+        if results and results.get("ids"):
+            vs.delete(ids=results["ids"])
 
         # Remove the raw PDF file.
         os.remove(os.path.join(self._pdf_store_dir, matches[0]))
+
 
     # ------------------------------------------------------------------
     # Conversation storage
