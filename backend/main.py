@@ -7,8 +7,9 @@ import os
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, validator, field_validator
+from pydantic import BaseModel, field_validator
 from contextlib import asynccontextmanager
+import time
 
 
 from db import (
@@ -20,6 +21,9 @@ from db import (
     fetch_conversation,
     get_document_ids,
     get_session_ids,
+    delete_session_db,
+    delete_document_db,
+    index_document_from_url
 )
 
 @asynccontextmanager
@@ -27,6 +31,11 @@ async def lifespan(app: FastAPI):
     if os.getenv("VECTOR_DB", "chroma") == "pgvector":
         from db import init_pgvector_db
         init_pgvector_db()
+
+    # Eagerly load the embedding model (and vectordb) at startup,
+    # mirroring the eager LLM load below.
+    from db import _cached_default_vectordb
+    _cached_default_vectordb()
     yield
 
 app = FastAPI(title="RAG Backend API", lifespan=lifespan)
@@ -43,13 +52,13 @@ app.add_middleware(
 )
 
 # ----------------------------------------
-# Mock models (used when LOAD_MODELS=false)
+# Mock models (used when LOAD_LLM=false)
 # ----------------------------------------
 # NOTE: We define them here to avoid import from ml.py, as it will trigger other stuff to load
 class MockLLM:
     def generate(self, conversation: list, chunks: list) -> str:
         prompt = self.format_prompt(conversation, chunks)
-        return f"[Mock LLM] This is a fake response. Set LOAD_MODELS=true to use the real model. \n\n\n {prompt}"
+        return f"[Mock LLM] This is a fake response. Set LOAD_LLM=true to use the real model. \n\n\n {prompt}"
     
     def format_prompt(self, conversation: list[dict], documents: list) -> str:
         user_convo = [c for c in conversation if c['role'].lower() == "user"]
@@ -65,26 +74,17 @@ class MockLLM:
             lines.append(f"[{i}] {filename} [p.{page}] [section: {section}] \n\n {snippet}...")
         return f'User msg: {user_msg}\n\n\n' + "\n\n\n".join(lines)
 
-class MockEmbedder:
-    def embed(self, text: str) -> list[float]:
-        return [0.0] * 768
-    
 # ----------------------------------------
 # Load models 
 # ----------------------------------------
-if os.getenv("LOAD_MODELS", "false").lower() == "true":
-    from ml import LLM, Embedder
+if os.getenv("LOAD_LLM", "false").lower() == "true":
+    from ml import LLM
     llm_model = os.getenv("LLM_MODEL", "google/gemma-3-4b-it")
-    print("Loading model:", llm_model)
+    print("Loading LLM model:", llm_model)
     llm = LLM(llm_model)
-    
-    # NOTE: As for now, embedder is not initialized here
-    #embedder_model = os.getenv("EMBEDDER_MODEL", "Qwen/Qwen3-Embedding-4B")
-    #embedder = Embedder(embedder_model)
 else:
-    print("Using mock model")
+    print("Using mock LLM model")
     llm = MockLLM()
-    #embedder = MockEmbedder()
 
 # ----------------------------------------
 # Health / root
@@ -127,13 +127,16 @@ def create_session() -> str:
 
 
 @app.delete("/sessions/{session_id}")
-def delete_session(session_id: str) -> bool:
-    """
-    Delete an existing session.
-    Returns:
-        bool: True if deleted successfully.
-    """
-    raise NotImplementedError()
+def delete_session(session_id: str, vectordb=Depends(get_vectordb_dep)):
+    try:
+        delete_session_db(session_id=session_id, vectordb=vectordb)
+        return True
+    except KeyError:
+        raise HTTPException(
+            status_code=404, detail=f"Session {session_id!r} not found")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error deleting session: {e}")
 
 
 @app.get("/sessions/{session_id}")
@@ -202,6 +205,10 @@ def update_conversation_of_session(
     _append_message(session_id, request, vectordb)
     conversation = [{"role": message.role, "content": message.message}
                     for message in get_conversation_for_session(session_id)]
+    
+    if len(request.doc_ids) == 0:
+        return "No documents were selected"
+    
     chunks = retrieve_documents(
         query=request.message,
         doc_ids=request.doc_ids,
@@ -209,7 +216,10 @@ def update_conversation_of_session(
     )
 
     try:
+        start = time.time()
         response = llm.generate(conversation, chunks)
+        end = time.time()
+        print(f"DEBUG: LLM generation took {end-start}s for {len(chunks)} chunks")
     except Exception as e:
         print(f"LLM generation failed: {e}")
         response = "Something went wrong while generating a response. Please try asking your question again."
@@ -257,6 +267,7 @@ class AddDocumentRequest(BaseModel):
     raw_document: str   # base64-encoded PDF bytes
     filename: str
     session_id: str
+    auto_name: bool
 
     @field_validator("raw_document")
     @classmethod
@@ -273,6 +284,19 @@ class AddDocumentRequest(BaseModel):
         return v
 
 
+class AddDocumentByUrlsRequest(BaseModel):
+    urls: list[str]   
+    session_id: str
+    auto_name: bool
+
+    @field_validator("urls")
+    @classmethod
+    def validate_base64(cls, v):
+        if len(v) < 1:
+            raise ValueError("must contain at least one url")
+        return v
+
+
 @app.post("/documents")
 def add_document(
     request: AddDocumentRequest,
@@ -286,20 +310,36 @@ def add_document(
     """
     try:
         file_bytes = base64.b64decode(request.raw_document)
-    except (ValueError, base64.binascii.Error) as e:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid base64 payload: {e}")
-
+    except (ValueError, base64.binascii.Error):
+        raise HTTPException(status_code=400, detail="Invalid base64 payload")
     try:
-        return index_document(
-            file_bytes,
-            filename=request.filename,
-            vectordb=vectordb
-        )
+        start = time.time()
+        doc_id = index_document(file_bytes, filename=request.filename,
+                                auto_name=request.auto_name, vectordb=vectordb)
+        end = time.time()
+        print(f"DEBUG: Document index by uploud took {end-start}")
+        return doc_id
     except Exception as e:
         print("Error", e)
-        raise HTTPException(
-            status_code=500, detail=f"Error indexing document: {e}")
+        raise HTTPException(status_code=500, detail="Error indexing document")
+
+
+@app.post("/documents/url")
+def add_documents_by_url(
+    request: AddDocumentByUrlsRequest, 
+    vectordb=Depends(get_vectordb_dep)):
+    for url in request.urls:
+        try:
+            start = time.time()
+            doc_id = index_document_from_url(
+                url=url, auto_name=request.auto_name, vectordb=vectordb)
+            end = time.time()
+            print(f"DEBUG: Document index by URL took {end-start}s")
+            return doc_id
+        except Exception as e:
+            print("Error", e)
+            raise HTTPException(
+                status_code=500, detail="Error indexing document")
 
 
 @app.get("/documents/{document_id}")
@@ -325,19 +365,20 @@ def get_documents(vectordb=Depends(get_vectordb_dep)) -> dict[str, str]:
     except Exception as e:
         print("Error", e)
         raise HTTPException(
-            status_code=500, detail=f"Error retrieving documents: {e}")
+            status_code=500, detail=f"Error retrieving documents")
 
 
 @app.delete("/documents/{document_id}")
-def delete_document(document_id: str) -> bool:
-    """
-    Delete a document by ID.
-
-    Returns:
-        bool: True if deleted successfully.
-    """
-    raise NotImplementedError()
-
+def delete_document(document_id: str, vectordb=Depends(get_vectordb_dep)):
+    try:
+        delete_document_db(document_id, vectordb=vectordb)
+        return True
+    except KeyError:
+        raise HTTPException(
+            status_code=404, detail=f"Document {document_id!r} not found")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error deleting document: {e}")
 
 # ----------------------------------------
 # Search
