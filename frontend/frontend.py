@@ -332,7 +332,7 @@ with st.sidebar:
 
     uploaded_files = st.file_uploader(
         "Upload a document",
-        type=["pdf", "txt"],
+        type=["pdf"],
         label_visibility="collapsed",
         accept_multiple_files=True,
         key=st.session_state.uploader_key,
