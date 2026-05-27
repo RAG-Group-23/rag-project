@@ -5,6 +5,8 @@ from uuid import uuid4
 import requests
 import os
 from urllib.parse import urlparse
+from datetime import datetime
+
 
 USER_AVATAR = None
 BOT_AVATAR = None
@@ -35,13 +37,20 @@ def prepare_query_payload(query: str, session_id: str, selected_docs: list) -> d
     return {"message": query, "session_id": session_id, "doc_ids": selected_docs, "role": "user"}
 
 
+def format_timestamp(iso_string: str) -> str:
+    if not iso_string:
+        return ""
+    dt = datetime.fromisoformat(iso_string)
+    return dt.strftime("%d/%m/%Y %H:%M")
+
+
 def fetch_session_conversation(session_id: str) -> list:
     try:
         response = requests.get(
             f"{API_BASE_URL}/sessions/{session_id}/conversation")
         if response.status_code == 200:
             return [
-                {"role": entry["role"], "content": entry["message"]}
+                {"role": entry["role"], "content": entry["message"], "sent_at": format_timestamp(entry["sent_at"])}
                 for entry in response.json()
             ]
         else:
@@ -295,17 +304,22 @@ with st.sidebar:
         else:
             for sid, meta in reversed(list(all_sessions.items())):
                 conversation = fetch_session_conversation(sid)
+                first_sent = '-'
                 if not conversation:
                     first_user_msg = "No messages yet."
                 elif conversation[0]["role"] == "user":
                     first_user_msg = conversation[0]["content"]
+                    first_sent = conversation[0]["sent_at"]
                 else:
                     first_user_msg = conversation[1]["content"] if len(
                         conversation) > 1 else "No messages yet."
+                    first_sent = conversation[1]["sent_at"]
 
                 is_active = sid == session_id
-                label = f"{'🟢 ' if is_active else ''}{first_user_msg}"
-                help_text = f"Created {meta['created_at']}"
+                display_name = first_user_msg if len(first_user_msg) <= 22 else first_user_msg[:19] + "..."
+                label = f"{'🟢 ' if is_active else ''}{display_name}"
+                created_at = '' if first_sent == '-' else f"Created {first_sent}"
+                help_text = f"{first_user_msg} {created_at}"
                 btn_type = "primary" if is_active else "secondary"
 
                 col_sess, col_del = st.columns([5, 1])
