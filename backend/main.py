@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 from contextlib import asynccontextmanager
+import time
 
 
 from db import (
@@ -313,7 +314,12 @@ def add_document(
     except (ValueError, base64.binascii.Error):
         raise HTTPException(status_code=400, detail="Invalid base64 payload")
     try:
-        return index_document(file_bytes, filename=request.filename, auto_name=request.auto_name, vectordb=vectordb)
+        start = time.time()
+        doc_id = index_document(file_bytes, filename=request.filename,
+                                auto_name=request.auto_name, vectordb=vectordb)
+        end = time.time()
+        print(f"INFO: Document index by uploud took {end-start}")
+        return doc_id
     except Exception as e:
         print("Error", e)
         raise HTTPException(status_code=500, detail="Error indexing document")
@@ -325,8 +331,12 @@ def add_documents_by_url(
     vectordb=Depends(get_vectordb_dep)):
     for url in request.urls:
         try:
-            index_document_from_url(
+            start = time.time()
+            doc_id = index_document_from_url(
                 url=url, auto_name=request.auto_name, vectordb=vectordb)
+            end = time.time()
+            print(f"INFO: Document index by URL took {end-start}s")
+            return doc_id
         except Exception as e:
             print("Error", e)
             raise HTTPException(
