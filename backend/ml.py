@@ -254,55 +254,9 @@ class LLM:
         for i, doc in enumerate(chunks):
             header = self._format_doc_header_for_humans(doc)
             text = text.replace(f"<{{{i}}}>", header)
-
         # remove invalid references that were not replaced (e.g. <{11}>, <{12}>, etc.)            
         text = re.sub(r"<\{\d+\}>", "", text)
-
         return text
-
-
-
-class Embedder:
-    def __init__(self, model_name: str):
-        self.model_name = model_name
-        match self.model_name:
-            # this model was chosen mostly at random.
-            # It has a hight score on the MTEB benchmark, and is relatively small, which should make it faster to run.
-            case "Qwen/Qwen3-Embedding-4B":
-                self.model = SentenceTransformer(
-                    "Qwen/Qwen3-Embedding-4B",
-                    device="cuda" if torch.cuda.is_available() else "cpu"
-                )
-                
-
-            case "sentence-transformers/all-MiniLM-L6-v2":
-                self.model = SentenceTransformer(
-                    "sentence-transformers/all-MiniLM-L6-v2",
-                    device="cpu"
-                )
-
-            case _:
-                raise ValueError(f"Unsupported model name: {self.model_name}")
-
-    def encode(self, input: list[str], is_query: bool | None = None) -> list[list[float]]:
-
-        if is_query is None:
-            is_query = False
-
-        match self.model_name:
-            case "Qwen/Qwen3-Embedding-4B":
-                return self.model.encode(
-                    input,
-                    prompt_name="query" if is_query else "document",
-                    device="cuda" if torch.cuda.is_available() else "cpu"
-                ).tolist()
-                
-            case "sentence-transformers/all-MiniLM-L6-v2":
-                return self.model.encode(input).tolist()
-
-            case _:
-                raise ValueError(f"Unsupported model name: {self.model_name}")
-
 
 if __name__ == "__main__":
     qwen_local = "Qwen/Qwen2.5-0.5B-Instruct"
@@ -315,17 +269,5 @@ if __name__ == "__main__":
     llm.format_prompt(messages, [])
     print("response: ")
     print(llm.generate(messages, []))
-
-    # embedding_model = Embedder("sentence-transformers/all-MiniLM-L6-v2")
-
-    # texts = [
-    #     "Attention is cool",
-    #     "Some other text"
-    # ]
-
-    # embeddings = embedding_model.encode(texts, is_query=True)
-    # print(embeddings[0][:10])
-    # embeddings = embedding_model.encode(texts, is_query=False)
-    # print(embeddings[0][:10])
     while True:
         pass

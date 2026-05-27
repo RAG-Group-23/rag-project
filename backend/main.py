@@ -74,15 +74,11 @@ class MockLLM:
             lines.append(f"[{i}] {filename} [p.{page}] [section: {section}] \n\n {snippet}...")
         return f'User msg: {user_msg}\n\n\n' + "\n\n\n".join(lines)
 
-class MockEmbedder:
-    def embed(self, text: str) -> list[float]:
-        return [0.0] * 768
-    
 # ----------------------------------------
 # Load models 
 # ----------------------------------------
 if os.getenv("LOAD_LLM", "false").lower() == "true":
-    from ml import LLM, Embedder
+    from ml import LLM
     llm_model = os.getenv("LLM_MODEL", "google/gemma-3-4b-it")
     print("Loading LLM model:", llm_model)
     llm = LLM(llm_model)
