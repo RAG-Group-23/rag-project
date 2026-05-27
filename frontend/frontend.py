@@ -412,7 +412,7 @@ def is_valid_url(url: str) -> bool:
 if st.session_state.show_url_indexer:
     st.title("Research Paper RAG 📚")
     st.subheader("🔗 Index documents from URLs")
-    st.caption("Enter one or more URLs separated by commas or newlines.")
+    st.caption("Enter one or more URLs separated by commas or newlines. URLs MUST point towards PDFs")
 
     raw = st.text_area(
         "URLs",
