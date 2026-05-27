@@ -235,31 +235,7 @@ def index_document(
     vectordb.index_documents(chunks)
     return doc_id
 
-
 def index_document_from_url(
-    url: str,
-    *,
-    vectordb: Optional[VectorDBInterface] = None,
-) -> str:
-    response = httpx.get(url, follow_redirects=True, timeout=30)
-    response.raise_for_status()
-
-    content_type = response.headers.get("content-type", "")
-    if "application/pdf" not in content_type:
-        raise ValueError(
-            f"URL does not point to a PDF (Content-Type: {content_type})")
-
-    file_bytes = response.content
-
-    if not file_bytes.startswith(b"%PDF"):
-        raise ValueError(
-            "File does not appear to be a valid PDF (missing %PDF header)")
-
-    filename = url.split("/")[-1].split("?")[0] or "document.pdf"
-    return index_document(file_bytes, filename=filename, vectordb=vectordb)
-
-
-def index_document_from_url_v2(
     url: str,
     *,
     vectordb: Optional[VectorDBInterface] = None,

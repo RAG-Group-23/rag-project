@@ -22,8 +22,7 @@ from db import (
     get_session_ids,
     delete_session_db,
     delete_document_db,
-    index_document_from_url,
-    index_document_from_url_v2
+    index_document_from_url
 )
 
 @asynccontextmanager
@@ -338,7 +337,7 @@ def add_documents_by_url(
 ):
     for url in request.urls:
         try:
-            index_document_from_url_v2(url=url, vectordb=vectordb)
+            index_document_from_url(url=url, vectordb=vectordb)
         except Exception as e:
             print("Error", e)
             raise HTTPException(
