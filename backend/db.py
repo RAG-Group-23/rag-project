@@ -124,7 +124,7 @@ def init_pgvector_db():
 
 def get_embedding_and_size() -> tuple[Embeddings, int]:
     model_name = os.getenv(
-        "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
+        "EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-4B"
     )
     print("Loading embedding model:", model_name)
     match model_name:

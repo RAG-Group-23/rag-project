@@ -85,14 +85,9 @@ if os.getenv("LOAD_LLM", "false").lower() == "true":
     llm_model = os.getenv("LLM_MODEL", "google/gemma-3-4b-it")
     print("Loading LLM model:", llm_model)
     llm = LLM(llm_model)
-    
-    # NOTE: As for now, embedder is not initialized here
-    #embedder_model = os.getenv("EMBEDDER_MODEL", "Qwen/Qwen3-Embedding-4B")
-    #embedder = Embedder(embedder_model)
 else:
     print("Using mock LLM model")
     llm = MockLLM()
-    #embedder = MockEmbedder()
 
 # ----------------------------------------
 # Health / root
