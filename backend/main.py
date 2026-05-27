@@ -31,6 +31,11 @@ async def lifespan(app: FastAPI):
     if os.getenv("VECTOR_DB", "chroma") == "pgvector":
         from db import init_pgvector_db
         init_pgvector_db()
+
+    # Eagerly load the embedding model (and vectordb) at startup,
+    # mirroring the eager LLM load below.
+    from db import _cached_default_vectordb
+    _cached_default_vectordb()
     yield
 
 app = FastAPI(title="RAG Backend API", lifespan=lifespan)
@@ -47,13 +52,13 @@ app.add_middleware(
 )
 
 # ----------------------------------------
-# Mock models (used when LOAD_MODELS=false)
+# Mock models (used when LOAD_LLM=false)
 # ----------------------------------------
 # NOTE: We define them here to avoid import from ml.py, as it will trigger other stuff to load
 class MockLLM:
     def generate(self, conversation: list, chunks: list) -> str:
         prompt = self.format_prompt(conversation, chunks)
-        return f"[Mock LLM] This is a fake response. Set LOAD_MODELS=true to use the real model. \n\n\n {prompt}"
+        return f"[Mock LLM] This is a fake response. Set LOAD_LLM=true to use the real model. \n\n\n {prompt}"
     
     def format_prompt(self, conversation: list[dict], documents: list) -> str:
         user_convo = [c for c in conversation if c['role'].lower() == "user"]
@@ -76,17 +81,17 @@ class MockEmbedder:
 # ----------------------------------------
 # Load models 
 # ----------------------------------------
-if os.getenv("LOAD_MODELS", "false").lower() == "true":
+if os.getenv("LOAD_LLM", "false").lower() == "true":
     from ml import LLM, Embedder
     llm_model = os.getenv("LLM_MODEL", "google/gemma-3-4b-it")
-    print("Loading model:", llm_model)
+    print("Loading LLM model:", llm_model)
     llm = LLM(llm_model)
     
     # NOTE: As for now, embedder is not initialized here
     #embedder_model = os.getenv("EMBEDDER_MODEL", "Qwen/Qwen3-Embedding-4B")
     #embedder = Embedder(embedder_model)
 else:
-    print("Using mock model")
+    print("Using mock LLM model")
     llm = MockLLM()
     #embedder = MockEmbedder()
 

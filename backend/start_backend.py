@@ -8,8 +8,8 @@ Steps:
 3. Save PID to /tmp for later teardown.
 
 Model loading modes (mutually exclusive flags):
-  --full        LOAD_MODELS=true  + hardcoded Qwen embedding + Gemma LLM  [default]
-  --embed-only  LOAD_MODELS=false + hardcoded Qwen embedding, no LLM
+  --full        LOAD_LLM=true  + hardcoded Qwen embedding + Gemma LLM  [default]
+  --embed-only  LOAD_LLM=false + hardcoded Qwen embedding, no LLM
   --no-models   No model env vars injected — reads from your shell environment
 """
 
@@ -80,8 +80,8 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Model loading modes (pick one):
-  (default)     LOAD_MODELS=true  — loads both Qwen embeddings + Gemma LLM
-  --embed-only  LOAD_MODELS=false — loads Qwen embeddings only, skips LLM
+  (default)     LOAD_LLM=true  — loads both Qwen embeddings + Gemma LLM
+  --embed-only  LOAD_LLM=false — loads Qwen embeddings only, skips LLM
   --no-models   No model env vars injected — uses whatever is in your shell
                   (set them yourself: export LLM_MODEL=... EMBEDDING_MODEL=...)
         """,
@@ -92,7 +92,7 @@ Model loading modes (pick one):
         "--embed-only",
         action="store_true",
         help=(
-            "Start with LOAD_MODELS=false. Loads Qwen embeddings but skips the LLM. "
+            "Start with LOAD_LLM=false. Loads Qwen embeddings but skips the LLM. "
             "Useful for testing the chunker/embeddings pipeline without the LLM overhead."
         ),
     )
@@ -116,13 +116,13 @@ def build_model_env(args) -> dict:
         return {}
     elif args.embed_only:
         return {
-            "LOAD_MODELS":      "false",
+            "LOAD_LLM":      "false",
             "EMBEDDING_MODEL":  DEFAULT_EMBEDDING_MODEL,
         }
     else:
         # Default: full mode
         return {
-            "LOAD_MODELS":      "true",
+            "LOAD_LLM":      "true",
             "EMBEDDING_MODEL":  DEFAULT_EMBEDDING_MODEL,
             "LLM_MODEL":        DEFAULT_LLM_MODEL,
         }
@@ -136,11 +136,11 @@ def describe_mode(args):
         print_info(f"  EMBEDDING_MODEL = {emb}")
         print_info(f"  LLM_MODEL       = {llm}")
     elif args.embed_only:
-        print_info("Mode: embed-only — LOAD_MODELS=false, Qwen embeddings only")
+        print_info("Mode: embed-only — LOAD_LLM=false, Qwen embeddings only")
         print_info(f"  EMBEDDING_MODEL = {DEFAULT_EMBEDDING_MODEL}")
         print_info("  LLM_MODEL       = (not loaded)")
     else:
-        print_info("Mode: full       — LOAD_MODELS=true, embeddings + LLM")
+        print_info("Mode: full       — LOAD_LLM=true, embeddings + LLM")
         print_info(f"  EMBEDDING_MODEL = {DEFAULT_EMBEDDING_MODEL}")
         print_info(f"  LLM_MODEL       = {DEFAULT_LLM_MODEL}")
 

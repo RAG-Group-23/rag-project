@@ -48,12 +48,12 @@ requests server-side, not from a browser origin.
 ## Chroma DB
 Mainly used for fast local testing.
 ```python
-VECTOR_DB=chroma LOAD_MODELS=true LLM_MODEL=HuggingFaceTB/SmolLM2-360M-Instruct EMBEDDER_MODEL=sentence-transformers/all-MiniLM-L6-v2 python3 main.py
+VECTOR_DB=chroma LOAD_LLM=true LLM_MODEL=HuggingFaceTB/SmolLM2-360M-Instruct EMBEDDER_MODEL=sentence-transformers/all-MiniLM-L6-v2 python3 main.py
 ```
 * Will use ChromaDB instead of PGVector
-* If LOAD_MODELS=true, will use the specified models. The ones specified here are much weaker than the production one and can be run from CPU
+* If LOAD_LLM=true, will use the specified LLM. The one specified here are much weaker than the production one and can be run from CPU
     * Weaker models are also dumber, so do not expect responses directly related to documents; just a way to test interaction
-* If LOAD_MODELS=false, will use a MockLLM, that is, no LLM at all. Will just return the chunks as a formatted response.
+* If LOAD_LLM=false, will use a MockLLM, that is, no LLM at all. Will just return the chunks as a formatted response.
 
 ## PG Vector
 To check if DB contains right data; use the following commands:
@@ -155,7 +155,7 @@ volumes:
 Create a `.env` with:
 ```
 VECTOR_DB=pgvector
-LOAD_MODELS=false
+LOAD_LLM=false
 LLM_MODEL=HuggingFaceTB/SmolLM2-360M-Instruct
 EMBEDDER_MODEL=sentence-transformers/all-MiniLM-L6-v2
 DB_HOST=localhost
