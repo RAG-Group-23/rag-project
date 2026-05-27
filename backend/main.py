@@ -220,7 +220,10 @@ def update_conversation_of_session(
     )
 
     try:
+        start = time.time()
         response = llm.generate(conversation, chunks)
+        end = time.time()
+        print(f"DEBUG: LLM generation took {end-start}s for {len(chunks)} chunks")
     except Exception as e:
         print(f"LLM generation failed: {e}")
         response = "Something went wrong while generating a response. Please try asking your question again."
@@ -318,7 +321,7 @@ def add_document(
         doc_id = index_document(file_bytes, filename=request.filename,
                                 auto_name=request.auto_name, vectordb=vectordb)
         end = time.time()
-        print(f"INFO: Document index by uploud took {end-start}")
+        print(f"DEBUG: Document index by uploud took {end-start}")
         return doc_id
     except Exception as e:
         print("Error", e)
@@ -335,7 +338,7 @@ def add_documents_by_url(
             doc_id = index_document_from_url(
                 url=url, auto_name=request.auto_name, vectordb=vectordb)
             end = time.time()
-            print(f"INFO: Document index by URL took {end-start}s")
+            print(f"DEBUG: Document index by URL took {end-start}s")
             return doc_id
         except Exception as e:
             print("Error", e)
