@@ -26,9 +26,9 @@ def handle_answer(st, answer, stream_response=True):
         st.markdown(answer, unsafe_allow_html=True)
 
 
-def prepare_document_payload(file_bytes: bytes, filename: str, session_id: str) -> dict:
+def prepare_document_payload(file_bytes: bytes, filename: str, session_id: str, auto_name: bool) -> dict:
     encoded = base64.b64encode(file_bytes).decode("utf-8")
-    return {"raw_document": encoded, "filename": filename, "session_id": session_id}
+    return {"raw_document": encoded, "filename": filename, "session_id": session_id, "auto_name": auto_name}
 
 
 def prepare_query_payload(query: str, session_id: str, selected_docs: list) -> dict:
@@ -225,7 +225,13 @@ if "indexing_in_progress" not in st.session_state:
 
 if "pending_urls" not in st.session_state:
     st.session_state.pending_urls = []
-
+    
+if "auto_name" not in st.session_state:
+    st.session_state.auto_name = False
+    
+if "pending_auto_name" not in st.session_state:
+    st.session_state.pending_auto_name = False
+    
 save_current_session_meta()
 
 session_id = st.session_state.session_id
@@ -241,7 +247,10 @@ if st.session_state.indexing_in_progress:
         try:
             response = requests.post(
                 f"{API_BASE_URL}/documents/url",
-                json={"urls": urls, "session_id": short_id},
+                json={"urls": urls, 
+                      "session_id": short_id,
+                      "auto_name": st.session_state.pending_auto_name,
+                      },
             )
             if response.status_code == 200:
                 st.session_state.all_docs = fetch_all_documents()
@@ -256,6 +265,8 @@ if st.session_state.indexing_in_progress:
         finally:
             st.session_state.indexing_in_progress = False
             st.session_state.pending_urls = []
+            st.session_state.auto_name = st.session_state.pending_auto_name
+            #st.session_state.auto_name = False
             st.session_state.show_url_indexer = False
     st.rerun()
 
@@ -326,11 +337,18 @@ with st.sidebar:
         accept_multiple_files=True,
         key=st.session_state.uploader_key,
     )
+    
+
+    st.toggle(
+        "Auto-name from content",
+        key="auto_name",
+        help="Infer the document name from its content rather than the filename. Recommended when indexing documents via their URL",
+    )
 
     for uploaded_file in uploaded_files:
         file_bytes = uploaded_file.read()
         doc_payload = prepare_document_payload(
-            file_bytes, uploaded_file.name, short_id)
+            file_bytes, uploaded_file.name, short_id, st.session_state.auto_name)
         with st.spinner(f"Uploading {uploaded_file.name}..."):
             response = requests.post(
                 f"{API_BASE_URL}/documents", json=doc_payload)
@@ -387,7 +405,7 @@ if st.session_state.show_url_indexer:
         placeholder="https://example.com/paper1.pdf, https://example.com/paper2.pdf",
         height=120,
     )
-
+    
     col_index, col_cancel = st.columns(2)
     with col_index:
         if st.button("Index", type="primary", use_container_width=True):
@@ -397,6 +415,7 @@ if st.session_state.show_url_indexer:
             if not urls:
                 st.warning("Please enter at least one URL.")
             else:
+                st.session_state.pending_auto_name = st.session_state.auto_name
                 st.session_state.pending_urls = urls
                 st.session_state.indexing_in_progress = True
                 st.rerun()

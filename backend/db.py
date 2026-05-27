@@ -42,7 +42,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.embeddings import Embeddings
 
 from vectorstore import VectorDBInterface, PGVectorDBInstance, ChromaDBInstance
-from text_extractor import extract_sections
+from text_extractor import extract_sections, Section
 from chunker import chunk_sections
 
 
@@ -203,46 +203,57 @@ def get_title_for_sections(sections) -> str:
         if section.title is not None:
             return section.title.replace("*", '').strip().replace(' ', '_')
 
-def index_document(
+
+def _resolve_filename(sections, provided: str, auto_name: bool) -> str:
+    if auto_name or not provided.strip():
+        inferred = get_title_for_sections(sections)
+        return f"{inferred}.pdf" if inferred else (provided or "document.pdf")
+    return provided
+
+
+def _index_document_core(
     file_bytes: bytes,
+    filename: str,
+    sections: list[Section],
     *,
-    filename: str = "",
-    vectordb: Optional[VectorDBInterface] = None,
+    vectordb: VectorDBInterface,
 ) -> str:
-    if vectordb is None:
-        vectordb = _cached_default_vectordb()
-
-    # 1. Extract text & image references from the PDF
-    sections = extract_sections(BytesIO(file_bytes))
-
-    # 2. Persist raw PDF
     doc_id = vectordb.store_pdf(filename=filename, file_bytes=file_bytes)
-
-    # 3. Chunk pages with research-paper-aware chunker
     chunks = chunk_sections(
         sections,
         document_id=doc_id,
         chunk_size=int(os.getenv("CHUNK_SIZE", "256")),
         chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "64")),
     )
-
-    # 4. Add fields expected by retrieval / prompt formatting
     for chunk in chunks:
         chunk.metadata["filename"] = filename
-        #chunk.metadata["doc_id"] = doc_id
-
-    # 5. Index
     vectordb.index_documents(chunks)
     return doc_id
 
-def index_document_from_url(
-    url: str,
+
+def index_document(
+    file_bytes: bytes,
     *,
+    filename: str = "",
+    auto_name: bool = False,
     vectordb: Optional[VectorDBInterface] = None,
 ) -> str:
     if vectordb is None:
         vectordb = _cached_default_vectordb()
-        
+    sections = extract_sections(BytesIO(file_bytes))
+    resolved = _resolve_filename(sections, filename, auto_name)
+    return _index_document_core(file_bytes, resolved, sections, vectordb=vectordb)
+
+
+def index_document_from_url(
+    url: str,
+    *,
+    auto_name: bool = True,
+    vectordb: Optional[VectorDBInterface] = None,
+) -> str:
+    if vectordb is None:
+        vectordb = _cached_default_vectordb()
+
     response = httpx.get(url, follow_redirects=True, timeout=30)
     response.raise_for_status()
 
@@ -252,36 +263,14 @@ def index_document_from_url(
             f"URL does not point to a PDF (Content-Type: {content_type})")
 
     file_bytes = response.content
-
     if not file_bytes.startswith(b"%PDF"):
         raise ValueError(
             "File does not appear to be a valid PDF (missing %PDF header)")
 
-    # 1. Extract text & image references from the PDF
+    url_filename = url.split("/")[-1].split("?")[0] or "document.pdf"
     sections = extract_sections(BytesIO(file_bytes))
-    
-    filename = f'{get_title_for_sections(sections)}.pdf'
-    
-    # 2. Persist raw PDF
-    doc_id = vectordb.store_pdf(filename=filename, file_bytes=file_bytes)
-
-    # 3. Chunk pages with research-paper-aware chunker
-    chunks = chunk_sections(
-        sections,
-        document_id=doc_id,
-        chunk_size=int(os.getenv("CHUNK_SIZE", "256")),
-        chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "64")),
-    )
-
-    # 4. Add fields expected by retrieval / prompt formatting
-    for chunk in chunks:
-        chunk.metadata["filename"] = filename
-        # chunk.metadata["doc_id"] = doc_id
-
-    # 5. Index
-    vectordb.index_documents(chunks)
-    return doc_id
-
+    resolved = _resolve_filename(sections, url_filename, auto_name)
+    return _index_document_core(file_bytes, resolved, sections, vectordb=vectordb)
 
 def retrieve_documents(
     query: str,

@@ -272,6 +272,7 @@ class AddDocumentRequest(BaseModel):
     raw_document: str   # base64-encoded PDF bytes
     filename: str
     session_id: str
+    auto_name: bool
 
     @field_validator("raw_document")
     @classmethod
@@ -291,6 +292,7 @@ class AddDocumentRequest(BaseModel):
 class AddDocumentByUrlsRequest(BaseModel):
     urls: list[str]   
     session_id: str
+    auto_name: bool
 
     @field_validator("urls")
     @classmethod
@@ -313,35 +315,27 @@ def add_document(
     """
     try:
         file_bytes = base64.b64decode(request.raw_document)
-    except (ValueError, base64.binascii.Error) as e:
-        print("Error", e)
-        raise HTTPException(
-            status_code=400, detail=f"Invalid base64 payload")
-
+    except (ValueError, base64.binascii.Error):
+        raise HTTPException(status_code=400, detail="Invalid base64 payload")
     try:
-        return index_document(
-            file_bytes,
-            filename=request.filename,
-            vectordb=vectordb
-        )
+        return index_document(file_bytes, filename=request.filename, auto_name=request.auto_name, vectordb=vectordb)
     except Exception as e:
         print("Error", e)
-        raise HTTPException(
-            status_code=500, detail=f"Error indexing document")
+        raise HTTPException(status_code=500, detail="Error indexing document")
 
 
 @app.post("/documents/url")
 def add_documents_by_url(
-    request: AddDocumentByUrlsRequest,
-    vectordb=Depends(get_vectordb_dep),
-):
+    request: AddDocumentByUrlsRequest, 
+    vectordb=Depends(get_vectordb_dep)):
     for url in request.urls:
         try:
-            index_document_from_url(url=url, vectordb=vectordb)
+            index_document_from_url(
+                url=url, auto_name=request.auto_name, vectordb=vectordb)
         except Exception as e:
             print("Error", e)
             raise HTTPException(
-                status_code=500, detail=f"Error indexing document")
+                status_code=500, detail="Error indexing document")
 
 
 @app.get("/documents/{document_id}")
