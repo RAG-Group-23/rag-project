@@ -259,12 +259,16 @@ class LLM:
         text = re.sub(r"<\{\d+\}>", "", text)
         return text
 
+
     def expand_references(self, text: str) -> str:
         def replacer(match):
-            numbers = [n.strip() for n in match.group(1).split(",")]
+            numbers = [
+                n for n in re.split(r"[\s,]+", match.group(1).strip())
+                if n
+            ]
             return " ".join(f"<{{{n}}}>" for n in numbers)
 
-        return re.sub(r"<\{\s*([\d\s,]+)\s*\}>", replacer, text)           
+        return re.sub(r"<\{\s*([\d\s,]+)\s*\}>", replacer, text)
 
 
 if __name__ == "__main__":
