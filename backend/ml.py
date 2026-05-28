@@ -158,6 +158,7 @@ class LLM:
                 decoded = self.processor.decode(
                     generation, skip_special_tokens=True)
                 print("DEBUG: Raw model output\n", decoded)
+                decoded = self.expand_references(decoded)
                 return self.replace_model_references(decoded, documents)
             # ------------------------------------------------------------
             # ------------------------------------------------------------
@@ -257,6 +258,18 @@ class LLM:
         # remove invalid references that were not replaced (e.g. <{11}>, <{12}>, etc.)            
         text = re.sub(r"<\{\d+\}>", "", text)
         return text
+
+
+    def expand_references(self, text: str) -> str:
+        def replacer(match):
+            numbers = [
+                n for n in re.split(r"[\s,]+", match.group(1).strip())
+                if n
+            ]
+            return " ".join(f"<{{{n}}}>" for n in numbers)
+
+        return re.sub(r"<\{\s*([\d\s,]+)\s*\}>", replacer, text)
+
 
 if __name__ == "__main__":
     qwen_local = "Qwen/Qwen2.5-0.5B-Instruct"
